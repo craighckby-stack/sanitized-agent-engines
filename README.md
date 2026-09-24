@@ -10,3 +10,4 @@ All vendor trademarks and proprietary branding have been scrubbed into isolated,
 | [open-interpreter](./engines/open-interpreter/specification.md) | [runtime.ts](./engines/open-interpreter/runtime.ts) | `KillianLucas/open-interpreter` | Clean-Room Sanitized | 2026-09-24 |
 
 | [langgraph](./engines/langgraph/specification.md) | [runtime.ts](./engines/langgraph/runtime.ts) | `langchain-ai/langgraph` | Clean-Room Sanitized | 2026-09-24 |
+| [deepseek-harness](./engines/deepseek-harness/specification.md) | [runtime.ts](./engines/deepseek-harness/runtime.ts) | `deepseek-ai/deepseek-harness` | Clean-Room Sanitized | 2026-09-24 |
