@@ -12,3 +12,4 @@ All vendor trademarks and proprietary branding have been scrubbed into isolated,
 | [langgraph](./engines/langgraph/specification.md) | [runtime.ts](./engines/langgraph/runtime.ts) | `langchain-ai/langgraph` | Clean-Room Sanitized | 2026-09-24 |
 | [deepseek-harness](./engines/deepseek-harness/specification.md) | [runtime.ts](./engines/deepseek-harness/runtime.ts) | `deepseek-ai/deepseek-harness` | Clean-Room Sanitized | 2026-09-24 |
 | [AutoGPT](./engines/autogpt/specification.md) | [runtime.ts](./engines/autogpt/runtime.ts) | `Significant-Gravitas/AutoGPT` | Clean-Room Sanitized | 2026-09-24 |
+| [aider](./engines/aider/specification.md) | [runtime.ts](./engines/aider/runtime.ts) | `Aider-AI/aider` | Clean-Room Sanitized | 2026-09-24 |
