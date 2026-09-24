@@ -1,1002 +1,942 @@
-This document catalogs the core runtime engines extracted from the OpenInterpreterRuntimeEngine project, refactored into pristine TypeScript. Each engine is described in terms of its role, inputs, state lifecycle, invariant preservation, and outputs, followed by its complete, sanitized implementation code.
+This document details the core runtime engines identified within the OpenInterpreterRuntimeEngine project, originally hosted by KillianLucas. The analysis focuses on isolating the operational components responsible for executing code and orchestrating conversational interactions, abstracting away proprietary naming and branding.
 
 ---
 
-## Common Interfaces and Types
-
-The following interfaces and types are used across the various runtime engines to ensure consistent data structures and communication protocols.
-
-```typescript
-/**
- * Represents a message in the conversation or system interaction.
- * Messages can be from the user, assistant (LLM), or function calls/results.
- */
-export interface IMessage {
-  role: 'user' | 'assistant' | 'system' | 'function';
-  content?: string; // Text content for user/assistant messages, or function results.
-  code?: string;    // Code block for assistant messages.
-  language?: string; // Language of the code block (e.g., 'python', 'javascript', 'sh').
-  name?: string;    // Name of the function/tool being called or that produced output.
-}
-
-/**
- * Configuration parameters for interacting with a Large Language Model (LLM).
- */
-export interface LLMConfig {
-  model?: string;
-  api_key?: string;
-  base_url?: string;
-  temperature?: number;
-  max_tokens?: number;
-  // Additional LLM-specific parameters can be added here.
-}
-
-/**
- * Interface for any Large Language Model (LLM) client.
- * It's responsible for sending messages to an LLM and streaming back its responses.
- */
-export interface ILLMClient {
-  /**
-   * Requests completions from the LLM based on the provided message history.
-   * @param messages The current conversation history to send to the LLM.
-   * @param config LLM-specific configuration overrides for this call.
-   * @returns An AsyncGenerator that yields IMessage chunks as the LLM responds.
-   */
-  getCompletions(messages: IMessage[], config: LLMConfig): AsyncGenerator<IMessage>;
-}
-
-/**
- * Interface for a generic code execution engine.
- * It provides methods to start, stop, and run code in a specific language environment.
- */
-export interface ICodeInterpreter {
-  readonly language: string; // The language this interpreter supports (e.g., 'python', 'javascript', 'sh').
-
-  /**
-   * Initializes and starts the underlying process for the code interpreter.
-   */
-  start(): Promise<void>;
-
-  /**
-   * Executes a given block of code within the interpreter's environment.
-   * @param code The code string to execute.
-   * @returns An AsyncGenerator that yields IMessage chunks representing stdout, stderr, or other outputs.
-   */
-  run(code: string): AsyncGenerator<IMessage>;
-
-  /**
-   * Stops and cleans up the underlying process for the code interpreter.
-   */
-  stop(): Promise<void>;
-
-  /**
-   * Resets the interpreter's state (e.g., clears variables, restarts the process).
-   * (Optional, but often useful for stateless or fresh executions).
-   */
-  reset?(): Promise<void>;
-}
-
-/**
- * Configuration for the main AgenticLoopEngine.
- */
-export interface OpenInterpreterRuntimeEngineConfiguration {
-  llmClient: ILLMClient;
-  llmConfig: LLMConfig;
-  autoRunCode?: boolean; // If true, the agent automatically executes code without user confirmation.
-  verbose?: boolean;     // Enable verbose logging.
-  debugMode?: boolean;   // Enable debug logging.
-  maxTokens?: number;    // Max tokens for LLM responses.
-  maxMessageHistory?: number; // Maximum number of messages to send to the LLM to control context window.
-  // Other configs specific to the orchestration.
-}
-
-// Dummy LLM Client for demonstration purposes. In a real system, this would integrate with
-// an actual LLM provider (e.g., OpenAI, Anthropic, Ollama, etc.).
-export class DummyLLMClient implements ILLMClient {
-  private callCount = 0; // Tracks the number of calls to simulate different LLM behaviors
-
-  async *getCompletions(messages: IMessage[], config: LLMConfig): AsyncGenerator<IMessage> {
-    this.callCount++;
-    console.log(`[DummyLLMClient] LLM Call ${this.callCount} with config:`, config);
-    console.log(`[DummyLLMClient] Messages history:`, messages);
-
-    // Simulate LLM thinking time
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    if (this.callCount === 1) {
-      // On the first call, pretend to provide some Python code
-      yield { role: 'assistant', content: 'Okay, I understand. I will use Python to achieve that.' };
-      await new Promise(resolve => setTimeout(resolve, 200));
-      yield {
-        role: 'assistant',
-        code: 'import os\nprint("Hello from dummy Python!");\nprint(f"Current directory: {os.getcwd()}")',
-        language: 'python'
-      };
-    } else if (this.callCount === 2 && messages.some(m => m.name === 'output')) {
-      // If previous message was code output, confirm and ask for next task
-      yield { role: 'assistant', content: 'The Python code executed successfully. What should I do next?' };
-    } else {
-      // Generic response for other scenarios
-      yield { role: 'assistant', content: 'I am ready for your next instruction.' };
-    }
-  }
-}
-```
-
----
-
-## Engine 1: AgenticLoopEngine
+## Engine 1: Code Execution Engine
 
 ### What it does
 
-The `AgenticLoopEngine` is the core orchestration component of the system. It manages the entire conversational and task execution flow of an AI agent. Its primary responsibility is to:
+The Code Execution Engine is responsible for managing and executing code snippets in various programming languages (Python, JavaScript, and Shell). It provides an isolated, persistent execution environment for each supported language, allowing variables, functions, and session state to be maintained across multiple code submissions.
 
-1.  **Receive User Input:** Accept textual prompts or structured messages from the user.
-2.  **Maintain Conversation History:** Store and manage the sequence of messages exchanged between the user, the LLM, and code execution outputs. This history forms the context for subsequent LLM interactions.
-3.  **Interact with LLM:** Send a curated portion of the conversation history to a Large Language Model (LLM) client and process its streaming responses.
-4.  **Process LLM Responses:** Interpret the LLM's output, which can be natural language text (for direct user response) or structured code blocks (to be executed by a code interpreter).
-5.  **Dispatch Code Execution:** When the LLM generates a code block, the engine identifies the language and dispatches the code to the appropriate `ICodeInterpreter` instance.
-6.  **Capture and Integrate Code Output:** Collect the standard output, error messages, and return values from executed code, and incorporate them back into the conversation history. This allows the LLM to observe the results of its actions and iterate.
-7.  **Manage Agentic Loop:** Continuously cycle through LLM interaction and code execution until the LLM indicates that it has completed its task (by not generating further code) or an explicit stop condition is met.
+**Key responsibilities and features:**
+*   **Language-Specific Sessions**: It maintains separate, long-running processes for each language (e.g., a Python interpreter, a Node.js runtime, a shell instance).
+*   **Persistent State**: For Python and JavaScript, the engine ensures that code executed in one call affects the environment for subsequent calls within the same session (e.g., declared variables remain accessible).
+*   **Input/Output Handling**: It accepts code as input, executes it, and captures all standard output (stdout), standard error (stderr), and results.
+*   **Structured Communication**: It communicates with the language-specific runtime processes using a JSON-based protocol over standard input/output streams, allowing for structured code submission and result retrieval.
+*   **Error Reporting**: Catches and reports execution errors, including exceptions and non-zero exit codes.
+*   **Interruption/Termination**: Provides mechanisms to interrupt currently running code or stop a language session entirely.
 
-**Inputs:** An initial array of `IMessage` objects or a `string` representing user input. It also takes a `OpenInterpreterRuntimeEngineConfiguration` object during initialization to configure LLM interaction, auto-run behavior, and verbosity.
+**Inputs:**
+*   `language`: A string specifying the target language ("python", "javascript", "shell").
+*   `code`: A string containing the code snippet to be executed.
+*   `action`: An action type ("execute", "interrupt", "stop").
 
 **State Lifecycle:**
-*   **Initialization:** Sets up the LLM client, loads configuration, and initializes an empty `messages` array for conversation history. It maintains a `Map` of registered `ICodeInterpreter` instances.
-*   **Active:** The `chat` method drives the engine. Each call potentially modifies the `messages` array and interacts with the LLM and code interpreters.
-*   **Termination:** The `stop` method orchestrates the shutdown of all active code interpreter processes.
-*   **Reset:** The `reset` method clears the conversation history, allowing for a fresh start.
+1.  **Start Session**: A new process is spawned for the specified language. For Python and JavaScript, a lightweight client script is run within this process to facilitate JSON communication and persistent context management.
+2.  **Execute Code**: Code is sent to the active session.
+3.  **Output Capture**: The session captures all output until execution completes.
+4.  **Error Handling**: If an error occurs during execution, it's captured and returned.
+5.  **Stop Session**: The language process is terminated.
 
 **Invariant Preservation:**
-*   **Sequential Conversation:** Ensures that messages are added to the history in chronological order, and that the LLM always receives a coherent, ordered sequence of prior interactions.
-*   **Contextual Integrity:** The portion of the history sent to the LLM is carefully managed (e.g., trimmed by `maxMessageHistory`) to fit within the LLM's context window while retaining the most relevant recent turns.
-*   **Execution Feedback Loop:** Guarantees that the output of any executed code is promptly captured and fed back into the `messages` history before the next LLM call, enabling the LLM to react to and correct its own actions.
+*   Each language session maintains its independent execution context, preventing cross-language state leakage.
+*   The communication protocol ensures consistent parsing of inputs and outputs.
+*   Errors during code execution are isolated and reported without crashing the engine itself.
 
-**Outputs:** An `AsyncGenerator<IMessage>` that yields messages in real-time as they are produced by the LLM (streaming text and code) or by the code interpreters (streaming outputs and errors).
+**Outputs:**
+*   A string containing the combined standard output and error from the executed code.
+*   Error messages if execution fails.
 
 ### Implementation Code
 
 ```typescript
-import {
-  IMessage,
-  LLMConfig,
-  ILLMClient,
-  ICodeInterpreter,
-  OpenInterpreterRuntimeEngineConfiguration
-} from './interfaces'; // Assuming interfaces are in 'interfaces.ts'
+import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
+import { EventEmitter } from 'events';
 
-export class AgenticLoopEngine {
-  private messages: IMessage[] = [];
-  private llmClient: ILLMClient;
-  private llmConfig: LLMConfig;
-  private codeInterpreters: Map<string, ICodeInterpreter> = new Map();
-  private autoRunCode: boolean;
-  private verbose: boolean;
-  private debugMode: boolean;
-  private maxTokens: number | undefined;
-  private maxMessageHistory: number | undefined;
+/**
+ * Interface for a language-specific execution session.
+ * Manages a child process and its communication protocol.
+ */
+interface ILanguageSession {
+    /** The language this session is for. */
+    readonly language: string;
+    /** Starts the underlying process for the session. */
+    start(): Promise<void>;
+    /** Executes a given code string within the session. */
+    execute(code: string): Promise<string>;
+    /** Sends an interrupt signal to the running code, if supported. */
+    interrupt(): Promise<void>;
+    /** Stops and cleans up the session's process. */
+    stop(): Promise<void>;
+    /** Returns true if the session is currently active/running. */
+    isActive(): boolean;
+}
 
-  constructor(config: OpenInterpreterRuntimeEngineConfiguration) {
-    this.llmClient = config.llmClient;
-    this.llmConfig = config.llmConfig;
-    this.autoRunCode = config.autoRunCode ?? false;
-    this.verbose = config.verbose ?? false;
-    this.debugMode = config.debugMode ?? false;
-    this.maxTokens = config.maxTokens;
-    this.maxMessageHistory = config.maxMessageHistory;
+/**
+ * Base class for common session management.
+ */
+abstract class BaseLanguageSession extends EventEmitter implements ILanguageSession {
+    public readonly language: string;
+    protected process: ChildProcessWithoutNullStreams | null = null;
+    protected outputBuffer: string[] = [];
+    protected isActiveSession: boolean = false;
+    protected currentExecutionPromise: { resolve: (value: string) => void; reject: (reason?: any) => void } | null = null;
 
-    if (this.verbose) {
-      console.log("[AgenticLoopEngine] Initialized with config:", config);
-    }
-  }
-
-  /**
-   * Registers a code interpreter with the engine, making it available for code execution.
-   * @param interpreter An instance of an ICodeInterpreter.
-   */
-  public registerCodeInterpreter(interpreter: ICodeInterpreter): void {
-    this.codeInterpreters.set(interpreter.language, interpreter);
-    if (this.verbose) {
-      console.log(`[AgenticLoopEngine] Registered code interpreter for language: ${interpreter.language}`);
-    }
-  }
-
-  /**
-   * Starts the agentic loop, processing user input and interacting with the LLM and code interpreters.
-   * This method is an async generator, yielding messages as they are produced.
-   * @param input The initial user input, either as a string or an array of messages.
-   * @returns An AsyncGenerator that yields IMessage objects.
-   */
-  public async *chat(input: string | IMessage[]): AsyncGenerator<IMessage> {
-    if (typeof input === 'string') {
-      this.messages.push({ role: 'user', content: input });
-    } else {
-      // If an array of messages, ensure the last one is from the user or system to trigger LLM thinking
-      this.messages.push(...input);
+    constructor(language: string) {
+        super();
+        this.language = language;
     }
 
-    if (this.debugMode) {
-      console.log("[AgenticLoopEngine] Starting chat loop. Initial messages:", this.messages);
-    }
+    public abstract start(): Promise<void>;
 
-    while (true) {
-      const messagesForLLM = this.trimMessagesForLLM(this.messages);
+    public abstract execute(code: string): Promise<string>;
 
-      if (this.debugMode) {
-        console.log("[AgenticLoopEngine] Calling LLM with messages:", messagesForLLM);
-      }
-
-      const llmResponseGenerator = this.llmClient.getCompletions(messagesForLLM, {
-        ...this.llmConfig,
-        max_tokens: this.maxTokens,
-      });
-
-      let fullLLMResponse: IMessage = { role: 'assistant', content: '' };
-      let toolCodeContent = '';
-      let toolCodeLanguage = '';
-      let receivedAnyContent = false; // Flag to track if any content (text or code) was received from LLM
-
-      try {
-        for await (const chunk of llmResponseGenerator) {
-          receivedAnyContent = true;
-          yield chunk; // Stream LLM output directly to the consumer
-
-          if (chunk.content) {
-            fullLLMResponse.content += chunk.content;
-          }
-          if (chunk.code) {
-            toolCodeContent += chunk.code;
-            toolCodeLanguage = chunk.language || 'python'; // Default code language if not specified by LLM
-          }
-          // The LLM client is expected to yield messages with either 'content' or 'code'/'language'.
-          // If the LLM produces distinct messages for text and code, this logic handles it.
-        }
-      } catch (error) {
-        console.error("[AgenticLoopEngine] Error during LLM completion:", error);
-        const errorMessage = { role: 'function', name: 'error', content: `LLM Error: ${error instanceof Error ? error.message : String(error)}` };
-        this.messages.push(errorMessage);
-        yield errorMessage;
-        break; // Exit loop on LLM error
-      }
-
-
-      // Add the full combined LLM response (text + code) to history
-      if (receivedAnyContent) {
-        const finalLLMMessage: IMessage = { role: 'assistant' };
-        if (fullLLMResponse.content) finalLLMMessage.content = fullLLMResponse.content.trim();
-        if (toolCodeContent) {
-          finalLLMMessage.code = toolCodeContent.trim();
-          finalLLMMessage.language = toolCodeLanguage;
-        }
-        if (finalLLMMessage.content || finalLLMMessage.code) {
-          this.messages.push(finalLLMMessage);
-        }
-      }
-
-      if (toolCodeContent) {
-        // LLM provided code, attempt to execute it
-        if (this.verbose) {
-          console.log(`[AgenticLoopEngine] LLM suggested code (${toolCodeLanguage}):\n${toolCodeContent}`);
-        }
-
-        if (!this.autoRunCode) {
-          // If auto-run is off, yield a message to the user for approval.
-          // In a real application, the consumer of this generator would prompt the user
-          // and then re-call `chat` with a user message indicating 'y' or 'n'.
-          // For a standalone engine, we assume autoRunCode is handled by configuration or a simple prompt.
-          yield { role: 'system', content: `Code suggested in ${toolCodeLanguage}:\n\`\`\`${toolCodeLanguage}\n${toolCodeContent}\n\`\`\`\nProceed? (auto-run is off)` };
-          // If autoRunCode is false, this loop needs an external signal to continue or stop.
-          // For this pristine code, we'll assume a "yes" implicitly if autoRunCode is off,
-          // or that the loop breaks until external input which is out of scope.
-          // To make it fully functional without explicit UI, let's proceed if autoRunCode is off and no explicit 'n' is given.
-          // This behavior might need adjustment depending on the actual UI integration.
-          // For now, we proceed as if approval is implicit when `autoRunCode` is off and this point is reached.
-        }
-
-        const interpreter = this.codeInterpreters.get(toolCodeLanguage);
-        if (interpreter) {
-          yield { role: 'system', content: `Running ${toolCodeLanguage} code...` };
-          if (this.debugMode) {
-            console.log(`[AgenticLoopEngine] Executing ${toolCodeLanguage} code.`);
-          }
-
-          const codeOutputMessages: IMessage[] = [];
-          try {
-            for await (const outputChunk of interpreter.run(toolCodeContent)) {
-              yield outputChunk; // Yield code output chunks as they arrive
-              codeOutputMessages.push(outputChunk);
+    public async interrupt(): Promise<void> {
+        if (this.process && !this.process.killed) {
+            // A more robust interrupt might send a specific signal or message
+            // For now, we'll terminate the current process and restart, or just kill.
+            // This behavior depends on the client script's interrupt handling.
+            this.emit('log', `[${this.language}]: Attempting to interrupt process.`);
+            this.process.kill('SIGINT'); // Send interrupt signal
+            if (this.currentExecutionPromise) {
+                this.currentExecutionPromise.reject(new Error(`[${this.language}]: Execution interrupted.`));
+                this.currentExecutionPromise = null;
             }
-            // Add all code output messages to history
-            this.messages.push(...codeOutputMessages);
-          } catch (error) {
-            console.error(`[AgenticLoopEngine] Error executing ${toolCodeLanguage} code:`, error);
-            const errorMessage: IMessage = { role: 'function', name: 'error', content: `Code Execution Error: ${error instanceof Error ? error.message : String(error)}` };
-            this.messages.push(errorMessage);
-            yield errorMessage;
-            // Decide if execution should stop on code error or continue to LLM for self-correction.
-            // For now, continue to LLM to allow it to react to the error.
-          }
+            await this.stop(); // Stop and potentially restart for clean state
+            await this.start();
+        }
+    }
 
-          // Continue the loop to let the LLM see the output and potentially generate more code or a final response.
-          continue;
+    public async stop(): Promise<void> {
+        if (this.process && !this.process.killed) {
+            this.emit('log', `[${this.language}]: Stopping process.`);
+            this.process.kill('SIGKILL'); // Force kill
+        }
+        this.process = null;
+        this.isActiveSession = false;
+        this.outputBuffer = [];
+        if (this.currentExecutionPromise) {
+            this.currentExecutionPromise.reject(new Error(`[${this.language}]: Session stopped during execution.`));
+            this.currentExecutionPromise = null;
+        }
+    }
+
+    public isActive(): boolean {
+        return this.isActiveSession;
+    }
+
+    protected setupProcess(process: ChildProcessWithoutNullStreams): void {
+        this.process = process;
+        this.isActiveSession = true;
+        this.outputBuffer = [];
+
+        this.process.stdout.on('data', (data) => {
+            const chunk = data.toString();
+            this.outputBuffer.push(chunk);
+            this.emit('output', { language: this.language, type: 'stdout', value: chunk });
+        });
+
+        this.process.stderr.on('data', (data) => {
+            const chunk = data.toString();
+            this.outputBuffer.push(chunk); // Often stderr is also part of "output" for LLM
+            this.emit('output', { language: this.language, type: 'stderr', value: chunk });
+        });
+
+        this.process.on('close', (code) => {
+            this.emit('log', `[${this.language}]: Process exited with code ${code}.`);
+            this.isActiveSession = false;
+            if (this.currentExecutionPromise) {
+                this.currentExecutionPromise.reject(
+                    new Error(`[${this.language}]: Process exited unexpectedly with code ${code}. Output: ${this.outputBuffer.join('')}`)
+                );
+                this.currentExecutionPromise = null;
+            }
+        });
+
+        this.process.on('error', (err) => {
+            this.emit('log', `[${this.language}]: Process error: ${err.message}`);
+            this.isActiveSession = false;
+            if (this.currentExecutionPromise) {
+                this.currentExecutionPromise.reject(err);
+                this.currentExecutionPromise = null;
+            }
+        });
+    }
+
+    protected waitForOutputEnd(resolve: (value: string) => void, reject: (reason?: any) => void): void {
+        // Implement specific logic for each client to detect end of output,
+        // often via a specific marker or by listening for the "output" message type.
+        // This base method is a placeholder; derived classes must implement.
+        // For simplicity here, we resolve after a short delay or when process exits.
+        // A robust solution involves parsing JSON responses from the client script.
+    }
+}
+
+/**
+ * Python client script injected into the Python interpreter.
+ * It manages persistent state and JSON communication.
+ */
+const pythonClientScript = `
+import json
+import sys
+import os
+import io
+import traceback
+
+# This dictionary holds the global state (variables, functions)
+_global_vars = {}
+# Initialize with some common built-ins
+_global_vars['__builtins__'] = __builtins__
+
+# Redirect stdout/stderr to an in-memory buffer
+class CodeOutputBuffer(io.StringIO):
+    def write(self, s):
+        sys.__stdout__.write(s) # Also write to actual stdout for debugging
+        super().write(s)
+
+# Function to execute code and capture output
+def execute_code_in_context(code_string):
+    global _global_vars
+    
+    # Temporarily redirect stdout and stderr
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
+    sys.stdout = sys.stderr = CodeOutputBuffer()
+
+    try:
+        exec(code_string, _global_vars)
+        output_value = sys.stdout.getvalue()
+    except Exception as e:
+        output_value = sys.stdout.getvalue() + traceback.format_exc()
+        sys.__stdout__.write(f"\\nError during execution:\\n{output_value}\\n")
+        # Do not exit; send error back to parent
+    finally:
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr
+    
+    return output_value.strip()
+
+if __name__ == "__main__":
+    # Ensure stdout/stderr are unbuffered for real-time communication
+    sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 1, encoding='utf-8')
+    sys.stderr = os.fdopen(sys.stderr.fileno(), 'w', 1, encoding='utf-8')
+
+    while True:
+        try:
+            line = sys.stdin.readline()
+            if not line:
+                break # EOF, parent process terminated
+            
+            message = json.loads(line)
+            
+            if message["type"] == "code":
+                code = message["code"]
+                output = execute_code_in_context(code)
+                response = {"type": "output", "value": output}
+                sys.stdout.write(json.dumps(response) + "\\n")
+                sys.stdout.flush()
+            elif message["type"] == "interrupt":
+                # In this simple client, interrupt is handled by process termination for now
+                # A more complex setup would use signals or thread management within Python
+                sys.stdout.write(json.dumps({"type": "message", "value": "Python interpreter interrupted."}) + "\\n")
+                sys.stdout.flush()
+                # A real interrupt might raise KeyboardInterrupt or similar, or just terminate this loop.
+                # For robustness, we might exit, letting the parent restart a clean session.
+                sys.exit(0)
+            
+        except json.JSONDecodeError:
+            error_msg = f"Invalid JSON input: {line.strip()}"
+            sys.stderr.write(json.dumps({"type": "error", "value": error_msg}) + "\\n")
+            sys.stderr.flush()
+        except Exception as e:
+            error_msg = f"Python client internal error: {traceback.format_exc()}"
+            sys.stderr.write(json.dumps({"type": "error", "value": error_msg}) + "\\n")
+            sys.stderr.flush()
+            # If a critical client error, exit to prevent further issues
+            sys.exit(1)
+`;
+
+/**
+ * Manages a persistent Python execution session.
+ */
+class PythonSession extends BaseLanguageSession {
+    constructor() {
+        super('python');
+    }
+
+    public async start(): Promise<void> {
+        if (this.isActive()) {
+            await this.stop(); // Ensure clean start
+        }
+        // Execute python with -u for unbuffered output and -c to run the client script directly.
+        const proc = spawn('python', ['-u', '-c', pythonClientScript]);
+        this.setupProcess(proc);
+        // Wait for a ready signal from the client or just assume it's ready after a short delay
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for process to initialize
+    }
+
+    public async execute(code: string): Promise<string> {
+        if (!this.process || !this.isActive()) {
+            throw new Error(`[${this.language}]: Session not active. Call 'start()' first.`);
+        }
+
+        return new Promise((resolve, reject) => {
+            this.currentExecutionPromise = { resolve, reject };
+            this.outputBuffer = []; // Clear buffer for new execution
+
+            const onData = (data: { language: string, type: string, value: string }) => {
+                if (data.language === this.language && data.type === 'stdout') {
+                    try {
+                        const message = JSON.parse(data.value);
+                        if (message.type === 'output') {
+                            this.process?.stdout.off('output', onData); // Remove listener once we get the result
+                            resolve(message.value);
+                            this.currentExecutionPromise = null;
+                        } else if (message.type === 'error') {
+                            this.process?.stdout.off('output', onData);
+                            reject(new Error(`[${this.language}]: Execution error: ${message.value}`));
+                            this.currentExecutionPromise = null;
+                        }
+                    } catch (e) {
+                        // Not JSON, just regular stdout data from the client script itself, or partial JSON.
+                        // Accumulate and wait for a full JSON message.
+                        // For robustness, this needs more careful parsing, potentially with a line buffer.
+                    }
+                }
+            };
+
+            this.process?.stdout.on('data', onData); // Listen for client's JSON output
+            
+            const message = JSON.stringify({ type: 'code', code: code });
+            this.process?.stdin.write(message + '\n');
+        });
+    }
+
+    protected setupProcess(process: ChildProcessWithoutNullStreams): void {
+        super.setupProcess(process);
+        // Custom stdout listener for PythonSession to parse JSON
+        this.process.stdout.removeAllListeners('data'); // Remove base listener
+        let lineBuffer = '';
+        this.process.stdout.on('data', (data) => {
+            lineBuffer += data.toString();
+            let newlineIndex;
+            while ((newlineIndex = lineBuffer.indexOf('\n')) !== -1) {
+                const line = lineBuffer.substring(0, newlineIndex).trim();
+                lineBuffer = lineBuffer.substring(newlineIndex + 1);
+                if (line) {
+                    try {
+                        const parsed = JSON.parse(line);
+                        this.emit('output', { language: this.language, type: 'stdout', value: line, parsed: parsed });
+                        // If it's the final output, resolve the promise
+                        if (this.currentExecutionPromise && parsed.type === 'output') {
+                             this.currentExecutionPromise.resolve(parsed.value);
+                             this.currentExecutionPromise = null;
+                        } else if (this.currentExecutionPromise && parsed.type === 'error') {
+                            this.currentExecutionPromise.reject(new Error(`[${this.language}]: Execution error: ${parsed.value}`));
+                            this.currentExecutionPromise = null;
+                        }
+                    } catch (e) {
+                        // Not JSON, or partial JSON. Treat as raw output.
+                        this.emit('output', { language: this.language, type: 'stdout', value: line });
+                    }
+                }
+            }
+        });
+    }
+}
+
+/**
+ * JavaScript client script injected into the Node.js interpreter.
+ * It manages persistent state using Node's `vm` module and JSON communication.
+ */
+const javascriptClientScript = `
+const readline = require('readline');
+const vm = require('vm');
+
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: false
+});
+
+// Create a persistent VM context
+const context = vm.createContext({});
+// Make console accessible in the VM context
+context.console = console;
+// Expose common globals if needed, e.g., setTimeout, clearTimeout
+context.setTimeout = setTimeout;
+context.clearTimeout = clearTimeout;
+context.setInterval = setInterval;
+context.clearInterval = clearInterval;
+context.process = {
+    stdout: {
+        write: (chunk) => {
+            // Intercept console.log and other stdout from VM code
+            if (typeof chunk === 'string') {
+                vmStdoutBuffer += chunk;
+            } else {
+                vmStdoutBuffer += String(chunk);
+            }
+        }
+    }
+};
+
+let vmStdoutBuffer = ''; // Buffer for output from vm.runInContext
+
+rl.on('line', (line) => {
+    try {
+        const message = JSON.parse(line);
+
+        if (message.type === 'code') {
+            const code = message.code;
+            vmStdoutBuffer = ''; // Clear buffer for new execution
+
+            let output = '';
+            try {
+                // Execute code in the persistent context
+                const result = vm.runInContext(code, context, {
+                    displayErrors: true,
+                    filename: 'vm-script.js'
+                });
+                
+                output = vmStdoutBuffer; // Capture anything written to context.process.stdout
+                if (result !== undefined) {
+                    output += String(result); // Append the explicit return value
+                }
+            } catch (e) {
+                output = vmStdoutBuffer + (e.stack || e.message || String(e));
+            } finally {
+                vmStdoutBuffer = ''; // Clear buffer after capturing
+            }
+
+            process.stdout.write(JSON.stringify({ type: 'output', value: output.trim() }) + '\\n');
+        } else if (message.type === 'interrupt') {
+            process.stdout.write(JSON.stringify({ type: 'message', value: 'JavaScript interpreter interrupted.' }) + '\\n');
+            process.exit(0); // Exit for a clean restart
+        }
+    } catch (e) {
+        process.stderr.write(JSON.stringify({ type: 'error', value: 'JavaScript client internal error: ' + (e.stack || e.message || String(e)) }) + '\\n');
+    }
+});
+
+rl.on('close', () => {
+    process.exit(0);
+});
+`;
+
+/**
+ * Manages a persistent JavaScript execution session using Node.js.
+ */
+class JavaScriptSession extends PythonSession { // Reusing PythonSession's structured communication for JS
+    constructor() {
+        super();
+        this.language = 'javascript';
+    }
+
+    public async start(): Promise<void> {
+        if (this.isActive()) {
+            await this.stop();
+        }
+        // Execute node with -e to run the client script directly.
+        // Node's stdin/stdout are unbuffered by default, which is good.
+        const proc = spawn('node', ['-e', javascriptClientScript]);
+        this.setupProcess(proc);
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for process to initialize
+    }
+}
+
+/**
+ * Manages a simple shell command execution.
+ * Shell commands are typically ephemeral and don't maintain a persistent state
+ * across executions in the same way Python/JS do. Each command runs in a new subshell.
+ */
+class ShellSession extends BaseLanguageSession {
+    constructor() {
+        super('shell');
+    }
+
+    public async start(): Promise<void> {
+        // For shell, we don't start a long-running client.
+        // Each `execute` call will spawn a new process.
+        this.isActiveSession = true; // Mark as active, though no background process runs
+        this.emit('log', `[${this.language}]: Shell session started (on-demand execution).`);
+    }
+
+    public async execute(code: string): Promise<string> {
+        if (!this.isActive()) {
+            throw new Error(`[${this.language}]: Session not active. Call 'start()' first.`);
+        }
+
+        return new Promise((resolve, reject) => {
+            this.outputBuffer = []; // Clear buffer for new execution
+
+            // For shell, just execute the command directly
+            const proc = spawn('bash', ['-c', code]);
+            let combinedOutput = '';
+
+            proc.stdout.on('data', (data) => {
+                combinedOutput += data.toString();
+                this.emit('output', { language: this.language, type: 'stdout', value: data.toString() });
+            });
+
+            proc.stderr.on('data', (data) => {
+                combinedOutput += data.toString();
+                this.emit('output', { language: this.language, type: 'stderr', value: data.toString() });
+            });
+
+            proc.on('close', (code) => {
+                if (code === 0) {
+                    resolve(combinedOutput.trim());
+                } else {
+                    reject(new Error(`Shell command exited with code ${code}. Output: ${combinedOutput.trim()}`));
+                }
+            });
+
+            proc.on('error', (err) => {
+                reject(new Error(`Failed to start shell process: ${err.message}`));
+            });
+        });
+    }
+
+    public async interrupt(): Promise<void> {
+        // Since shell commands are short-lived, interrupt usually means killing the currently running one.
+        // If an execution is in progress (i.e., `currentExecutionPromise` is set), try to kill its process.
+        this.emit('log', `[${this.language}]: Interrupt not directly supported for shell in this model, terminating current command if any.`);
+        // For actual running commands, you'd need to keep track of the spawned `proc` for each execute call.
+        // Given that each `execute` is a new process, the "interrupt" effectively just cancels the promise.
+        if (this.currentExecutionPromise) {
+            this.currentExecutionPromise.reject(new Error(`[${this.language}]: Shell command interrupted.`));
+            this.currentExecutionPromise = null;
+        }
+    }
+
+    public async stop(): Promise<void> {
+        this.isActiveSession = false;
+        this.emit('log', `[${this.language}]: Shell session stopped.`);
+        if (this.currentExecutionPromise) {
+            this.currentExecutionPromise.reject(new Error(`[${this.language}]: Session stopped during execution.`));
+            this.currentExecutionPromise = null;
+        }
+    }
+}
+
+/**
+ * The main Code Execution Engine orchestrating different language sessions.
+ */
+export class CodeExecutionEngine {
+    private sessions: Map<string, ILanguageSession> = new Map();
+    private readonly availableLanguages: string[] = ['python', 'javascript', 'shell'];
+
+    constructor() {
+        this.initializeSessions();
+    }
+
+    private initializeSessions(): void {
+        this.sessions.set('python', new PythonSession());
+        this.sessions.set('javascript', new JavaScriptSession());
+        this.sessions.set('shell', new ShellSession());
+    }
+
+    /**
+     * Starts a session for a given language.
+     * @param language The language to start ('python', 'javascript', 'shell').
+     */
+    public async startSession(language: string): Promise<void> {
+        const session = this.sessions.get(language);
+        if (!session) {
+            throw new Error(`Unsupported language: ${language}`);
+        }
+        if (!session.isActive()) {
+            await session.start();
+            console.log(`[CodeExecutionEngine]: ${language} session started.`);
         } else {
-          const errorMessage = `No interpreter found for language: ${toolCodeLanguage}. Cannot execute code.`;
-          console.error(`[AgenticLoopEngine] ${errorMessage}`);
-          const errorMsg: IMessage = { role: 'function', name: 'error', content: errorMessage };
-          this.messages.push(errorMsg);
-          yield errorMsg;
-          break; // Exit if no interpreter to handle the code
+            console.log(`[CodeExecutionEngine]: ${language} session already active.`);
         }
-      } else {
-        // If LLM didn't provide code and there was no content, it means the LLM is done for this turn.
-        // If it provided only text, and no code, it's also done.
-        if (this.debugMode) {
-          console.log("[AgenticLoopEngine] LLM did not provide code. Ending turn.");
+    }
+
+    /**
+     * Executes code in a specified language session.
+     * @param language The language to use.
+     * @param code The code string to execute.
+     * @returns A promise that resolves with the output of the code execution.
+     */
+    public async executeCode(language: string, code: string): Promise<string> {
+        const session = this.sessions.get(language);
+        if (!session) {
+            throw new Error(`Unsupported language: ${language}`);
         }
-        break; // Exit the loop, the conversation turn is complete.
-      }
-    }
-  }
-
-  /**
-   * Trims the message history to fit within the LLM's context window.
-   * This is a simple trimming strategy; more sophisticated methods might prioritize system messages, tool definitions, etc.
-   * @param messages The full conversation history.
-   * @returns A subset of messages suitable for the LLM.
-   */
-  private trimMessagesForLLM(messages: IMessage[]): IMessage[] {
-    if (!this.maxMessageHistory || messages.length <= this.maxMessageHistory) {
-      return messages;
-    }
-    // Keep a reasonable number of recent messages, including the last user prompt
-    return messages.slice(-this.maxMessageHistory);
-  }
-
-  /**
-   * Starts all registered code interpreter processes.
-   */
-  public async start(): Promise<void> {
-    if (this.verbose) {
-      console.log("[AgenticLoopEngine] Starting all registered code interpreters...");
-    }
-    for (const interpreter of this.codeInterpreters.values()) {
-      try {
-        await interpreter.start();
-        if (this.verbose) {
-          console.log(`[AgenticLoopEngine] Interpreter for ${interpreter.language} started.`);
+        if (!session.isActive()) {
+            await this.startSession(language); // Auto-start if not active
         }
-      } catch (error) {
-        console.error(`[AgenticLoopEngine] Failed to start interpreter for ${interpreter.language}:`, error);
-        throw error; // Propagate startup errors
-      }
-    }
-  }
-
-  /**
-   * Stops all registered code interpreter processes.
-   */
-  public async stop(): Promise<void> {
-    if (this.verbose) {
-      console.log("[AgenticLoopEngine] Stopping all registered code interpreters...");
-    }
-    for (const interpreter of this.codeInterpreters.values()) {
-      try {
-        await interpreter.stop();
-        if (this.verbose) {
-          console.log(`[AgenticLoopEngine] Interpreter for ${interpreter.language} stopped.`);
-        }
-      } catch (error) {
-        console.error(`[AgenticLoopEngine] Failed to stop interpreter for ${interpreter.language}:`, error);
-        // Continue stopping other interpreters even if one fails
-      }
-    }
-  }
-
-  /**
-   * Resets the conversation history, effectively starting a new conversation.
-   * Optionally resets the state of registered code interpreters.
-   */
-  public async reset(): Promise<void> {
-    if (this.verbose) {
-      console.log("[AgenticLoopEngine] Resetting conversation history and interpreters...");
-    }
-    this.messages = [];
-    for (const interpreter of this.codeInterpreters.values()) {
-      if (interpreter.reset) {
+        console.log(`[CodeExecutionEngine]: Executing ${language} code:\n${code}`);
         try {
-          await interpreter.reset();
-        } catch (error) {
-          console.error(`[AgenticLoopEngine] Failed to reset interpreter for ${interpreter.language}:`, error);
+            const output = await session.execute(code);
+            console.log(`[CodeExecutionEngine]: ${language} output:\n${output}`);
+            return output;
+        } catch (error: any) {
+            console.error(`[CodeExecutionEngine]: ${language} execution error: ${error.message}`);
+            throw error;
         }
-      }
     }
-  }
+
+    /**
+     * Interrupts the execution in a specified language session.
+     * @param language The language session to interrupt.
+     */
+    public async interruptSession(language: string): Promise<void> {
+        const session = this.sessions.get(language);
+        if (!session || !session.isActive()) {
+            console.warn(`[CodeExecutionEngine]: No active ${language} session to interrupt.`);
+            return;
+        }
+        await session.interrupt();
+        console.log(`[CodeExecutionEngine]: ${language} session interrupted.`);
+    }
+
+    /**
+     * Stops and cleans up a session for a given language.
+     * @param language The language to stop.
+     */
+    public async stopSession(language: string): Promise<void> {
+        const session = this.sessions.get(language);
+        if (!session || !session.isActive()) {
+            console.warn(`[CodeExecutionEngine]: No active ${language} session to stop.`);
+            return;
+        }
+        await session.stop();
+        console.log(`[CodeExecutionEngine]: ${language} session stopped.`);
+    }
+
+    /**
+     * Stops all active language sessions.
+     */
+    public async stopAllSessions(): Promise<void> {
+        const stopPromises = Array.from(this.sessions.values()).map(session => session.stop());
+        await Promise.allSettled(stopPromises);
+        console.log('[CodeExecutionEngine]: All sessions stopped.');
+    }
 }
 ```
 
 ---
 
-## Engine 2: PythonCodeExecutionEngine
+## Engine 2: Interaction Orchestration Engine
 
 ### What it does
 
-The `PythonCodeExecutionEngine` is responsible for executing Python code within a dedicated, persistent Python interpreter process. It provides a sandboxed (though locally accessible) environment for the `AgenticLoopEngine` to run Python scripts and commands.
+The Interaction Orchestration Engine manages the entire conversational flow within the OpenInterpreterRuntimeEngine. It acts as the central coordinator, mediating between user input, an external Language Model (LLM), and the Code Execution Engine. Its primary role is to interpret and respond to user requests, deciding whether to generate a natural language reply or to execute code via the Code Execution Engine based on the LLM's directives.
 
-1.  **Process Management:** Spawns and manages a child process running the Python interpreter in interactive mode (`python -i`).
-2.  **Code Ingestion:** Receives Python code strings from the `AgenticLoopEngine`.
-3.  **Execution & State:** Feeds the received code into the stdin of the Python process. Because it operates in interactive mode, variables, function definitions, and imported modules persist across multiple `run` calls within the same session.
-4.  **Output Capture:** Captures `stdout` and `stderr` streams from the Python process.
-5.  **Output Formatting:** Formats captured output and errors into `IMessage` objects, indicating the nature of the output (e.g., `'output'` for stdout, `'error'` for stderr or exceptions).
-6.  **Execution Synchronization:** Uses a unique termination token to reliably detect the end of a code execution block and synchronize the capture of its output.
+**Key responsibilities and features:**
+*   **Conversational State Management**: Maintains a chronological history of messages, including user input, LLM responses, code snippets, and code outputs (observations).
+*   **LLM Integration**: Interacts with an external LLM (abstracted by the `LLMClient` interface) by feeding it the conversation history and receiving its responses.
+*   **Response Interpretation**: Parses the LLM's output to determine if it's natural language to be displayed to the user or a structured request to execute code. It supports extracting code blocks (e.g., Python, JavaScript, Shell) from LLM-generated text.
+*   **Code Execution Delegation**: When the LLM requests code execution, it delegates the task to the Code Execution Engine, passing the extracted code and language.
+*   **Observation Feedback Loop**: Takes the output (observation) from the Code Execution Engine and feeds it back into the conversation history, making it available to the LLM for subsequent turns.
+*   **Turn-Based Processing**: Manages the iterative nature of the conversation, processing one message at a time and yielding intermediate results (like code execution requests or LLM thoughts) as an asynchronous generator.
+*   **Lifecycle Management**: Initializes and manages the lifecycle of the Code Execution Engine.
 
-**Inputs:** Python code as a string.
+**Inputs:**
+*   `input`: A string representing the user's message.
+*   `LLMClient`: An implementation of an external language model client.
+*   `CodeExecutionEngine`: An instance of the Code Execution Engine.
 
 **State Lifecycle:**
-*   **Initialization:** Constructor prepares the engine; no active process yet.
-*   **Start:** `start()` method spawns the Python child process, setting up event listeners for stdout/stderr and process termination. It waits for a readiness signal from the interpreter.
-*   **Run:** `run()` method sends code to the Python process, buffers output, and yields `IMessage` objects until a special end-of-execution marker is detected. It manages a `isBusy` flag to prevent concurrent executions.
-*   **Stop:** `stop()` method terminates the Python child process.
-*   **Persistence:** The interactive Python session maintains its state (defined variables, imports) across successive `run` calls until `stop()` is called.
+1.  **Initialization**: The engine starts with an empty message history and initializes the Code Execution Engine.
+2.  **User Input**: A user message is received and added to the history.
+3.  **LLM Query**: The entire message history is sent to the LLM.
+4.  **LLM Response Processing**: The LLM's response is parsed.
+    *   If text, it's added to history and yielded as output.
+    *   If code, it's added to history as a "tool_code" message, delegated to the Code Execution Engine.
+5.  **Code Execution & Observation**: The Code Execution Engine runs the code. Its output is captured, added to history as a "tool_output" message (observation), and the process loops back to "LLM Query" (the LLM receives the observation).
+6.  **Loop Termination**: The loop continues until the LLM produces a final text response or a specific termination condition is met.
 
 **Invariant Preservation:**
-*   **Order of Execution:** Ensures that Python code blocks are executed sequentially within the same interpreter instance, preserving the order of operations and variable dependencies.
-*   **Complete Output Capture:** Guarantees that all stdout and stderr generated by a code block are captured and reported, even if the output is voluminous or contains errors.
-*   **Session Integrity:** The Python session remains active and maintains its state between `run` calls, facilitating multi-step coding tasks where context is crucial.
+*   Conversation history is always maintained in chronological order.
+*   All LLM interactions and code executions are recorded within the history.
+*   The system always attempts to process LLM-generated code, feeding back observations.
 
-**Outputs:** An `AsyncGenerator<IMessage>` which yields `IMessage` objects representing `stdout` content (role `function`, name `output`) or `stderr`/exception messages (role `function`, name `error`).
+**Outputs:**
+*   An asynchronous generator yielding `Message` objects representing each step of the interaction (LLM thoughts, code execution requests, code outputs, final natural language responses).
 
 ### Implementation Code
 
 ```typescript
-import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
-import { IMessage, ICodeInterpreter } from './interfaces'; // Assuming interfaces are in 'interfaces.ts'
+import { CodeExecutionEngine } from './CodeExecutionEngine'; // Assuming CodeExecutionEngine is in a separate file
 
-export class PythonCodeExecutionEngine implements ICodeInterpreter {
-  public readonly language = 'python';
-  private process: ChildProcessWithoutNullStreams | null = null;
-  private outputBuffer: string = '';
-  private errorBuffer: string = '';
-  private resolveExecution: (() => void) | null = null;
-  private rejectExecution: ((error: Error) => void) | null = null;
-  private isBusy: boolean = false;
-  private verbose: boolean = false; // Add verbose flag, perhaps configurable
-
-  constructor(options?: { verbose?: boolean }) {
-    this.verbose = options?.verbose ?? false;
-  }
-
-  /**
-   * Starts the Python interactive interpreter process.
-   * It waits for a specific readiness signal from the interpreter.
-   */
-  public async start(): Promise<void> {
-    if (this.process) {
-      if (this.verbose) console.warn("[PythonCodeExecutionEngine] Python interpreter already started.");
-      return;
-    }
-
-    // Spawn Python in interactive mode, with a command to signal readiness
-    this.process = spawn('python', ['-i', '-c', 'import sys; print("OPEN_INTERPRETER_RUNTIME_ENGINE_PYTHON_READY"); sys.stdout.flush()'], {
-      stdio: ['pipe', 'pipe', 'pipe'] // stdin, stdout, stderr are piped
-    });
-
-    if (!this.process.stdout || !this.process.stderr || !this.process.stdin) {
-      throw new Error("[PythonCodeExecutionEngine] Failed to open stdio pipes for Python process.");
-    }
-
-    this.process.stdout.on('data', (data) => {
-      this.outputBuffer += data.toString();
-      if (this.verbose) console.log(`[PythonCodeExecutionEngine][STDOUT] Buffer growth: ${data.toString().trim()}`);
-    });
-
-    this.process.stderr.on('data', (data) => {
-      this.errorBuffer += data.toString();
-      if (this.verbose) console.log(`[PythonCodeExecutionEngine][STDERR] Buffer growth: ${data.toString().trim()}`);
-    });
-
-    this.process.on('close', (code) => {
-      if (this.rejectExecution) {
-        this.rejectExecution(new Error(`[PythonCodeExecutionEngine] Python process exited unexpectedly with code ${code}`));
-      }
-      this.process = null;
-      this.isBusy = false;
-      if (this.verbose) console.log(`[PythonCodeExecutionEngine] Python process closed with code ${code}.`);
-    });
-
-    this.process.on('error', (err) => {
-      if (this.rejectExecution) {
-        this.rejectExecution(err);
-      }
-      console.error("[PythonCodeExecutionEngine] Python process error:", err);
-      this.process = null;
-      this.isBusy = false;
-    });
-
-    // Wait for the interpreter to signal readiness
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.process?.kill(); // Terminate if it times out
-        reject(new Error("[PythonCodeExecutionEngine] Python interpreter startup timed out."));
-      }, 15000); // 15 seconds timeout
-
-      const onData = (data: Buffer) => {
-        const str = data.toString();
-        if (str.includes("OPEN_INTERPRETER_RUNTIME_ENGINE_PYTHON_READY")) {
-          clearTimeout(timeout);
-          this.process?.stdout?.off('data', onData); // Remove this specific listener
-          if (this.verbose) console.log("[PythonCodeExecutionEngine] Python interpreter is ready.");
-          resolve();
-        }
-      };
-      this.process?.stdout?.on('data', onData);
-    });
-  }
-
-  /**
-   * Executes a given Python code block in the persistent interpreter session.
-   * It uses a unique token to detect the end of the execution.
-   * @param code The Python code string to execute.
-   * @returns An AsyncGenerator that yields IMessage objects for output and errors.
-   */
-  public async *run(code: string): AsyncGenerator<IMessage> {
-    if (!this.process || !this.process.stdin) {
-      yield { role: 'function', name: 'error', content: '[PythonCodeExecutionEngine] Python interpreter not running.' };
-      return;
-    }
-    if (this.isBusy) {
-      yield { role: 'function', name: 'error', content: '[PythonCodeExecutionEngine] Python interpreter is currently busy with another execution.' };
-      return;
-    }
-
-    this.isBusy = true;
-    this.outputBuffer = ''; // Clear buffers for new execution
-    this.errorBuffer = '';
-
-    const executionPromise = new Promise<void>((resolve, reject) => {
-      this.resolveExecution = resolve;
-      this.rejectExecution = reject;
-    });
-
-    // Use a unique token to mark the end of execution and flush stdout
-    const endOfExecutionToken = `---OPEN_INTERPRETER_RUNTIME_ENGINE_PYTHON_END_${Date.now()}---`;
-    const wrappedCode = `${code}\nprint('${endOfExecutionToken}')\nsys.stdout.flush()\nsys.stderr.flush()\n`;
-
-    try {
-      this.process.stdin.write(wrappedCode);
-    } catch (e) {
-      this.isBusy = false;
-      yield { role: 'function', name: 'error', content: `[PythonCodeExecutionEngine] Failed to write to Python stdin: ${e}` };
-      return;
-    }
-
-    let currentStdoutSegment = '';
-    let currentStderrSegment = '';
-
-    const handleStdout = (data: Buffer) => {
-      const str = data.toString();
-      currentStdoutSegment += str;
-      if (currentStdoutSegment.includes(endOfExecutionToken)) {
-        const parts = currentStdoutSegment.split(endOfExecutionToken);
-        this.outputBuffer += parts[0]; // Content before the token
-        currentStdoutSegment = parts[1] || ''; // Remaining content after the token
-        if (this.resolveExecution) {
-          this.resolveExecution(); // Signal completion
-        }
-      } else {
-        this.outputBuffer += str;
-      }
-    };
-
-    const handleStderr = (data: Buffer) => {
-      const str = data.toString();
-      currentStderrSegment += str;
-      this.errorBuffer += str;
-    };
-
-    this.process.stdout.on('data', handleStdout);
-    this.process.stderr.on('data', handleStderr);
-
-    try {
-      await executionPromise; // Wait for the end token
-    } catch (e: any) {
-      yield { role: 'function', name: 'error', content: e.message || '[PythonCodeExecutionEngine] Unknown error during Python execution.' };
-    } finally {
-      this.process.stdout.off('data', handleStdout);
-      this.process.stderr.off('data', handleStderr);
-      this.isBusy = false;
-      this.resolveExecution = null;
-      this.rejectExecution = null;
-    }
-
-    // Clean up and yield the final output/error
-    const cleanedOutput = this.outputBuffer.replace(`\n'${endOfExecutionToken}'`, '').trim();
-    if (cleanedOutput) {
-      yield { role: 'function', name: 'output', content: cleanedOutput };
-    }
-    if (this.errorBuffer.trim()) {
-      yield { role: 'function', name: 'error', content: this.errorBuffer.trim() };
-    }
-  }
-
-  /**
-   * Stops the Python interpreter process.
-   */
-  public async stop(): Promise<void> {
-    if (this.process) {
-      if (this.verbose) console.log("[PythonCodeExecutionEngine] Stopping Python interpreter...");
-      this.process.kill(); // Send SIGTERM
-      this.process = null;
-      this.isBusy = false;
-    }
-  }
-
-  /**
-   * Resets the Python interpreter by stopping and restarting the process.
-   * This clears all defined variables and imported modules.
-   */
-  public async reset(): Promise<void> {
-    if (this.verbose) console.log("[PythonCodeExecutionEngine] Resetting Python interpreter.");
-    await this.stop();
-    await this.start();
-  }
+/**
+ * Represents a single message in the conversation history.
+ */
+export interface Message {
+    role: "user" | "assistant" | "tool"; // 'assistant' for LLM, 'user' for human, 'tool' for code execution/output
+    content?: string; // Natural language content or LLM's thoughts
+    tool_code?: { language: string, code: string }; // For assistant's tool calls (code to execute)
+    tool_output?: string; // For tool's output (observation from code execution)
 }
-```
 
----
-
-## Engine 3: JavaScriptCodeExecutionEngine
-
-### What it does
-
-The `JavaScriptCodeExecutionEngine` is designed to execute JavaScript code using a dedicated Node.js interpreter process. Similar to its Python counterpart, it provides an interactive and persistent environment for running JavaScript commands and scripts.
-
-1.  **Process Management:** Spawns and manages a child process running the Node.js interpreter in interactive mode (`node -i`).
-2.  **Code Ingestion:** Receives JavaScript code strings from the `AgenticLoopEngine`.
-3.  **Execution & State:** Sends the code to the stdin of the Node.js process. The interactive nature allows variables, function definitions, and module imports to persist across multiple `run` calls within the same session.
-4.  **Output Capture:** Monitors and captures `stdout` and `stderr` streams from the Node.js process.
-5.  **Output Formatting:** Formats the captured output and errors into `IMessage` objects, distinguishing between standard output and error messages.
-6.  **Execution Synchronization:** Utilizes a unique termination token printed by the Node.js process to accurately determine when a code execution block has completed and all its output has been received.
-
-**Inputs:** JavaScript code as a string.
-
-**State Lifecycle:**
-*   **Initialization:** Constructor prepares the engine.
-*   **Start:** `start()` method launches the Node.js child process, sets up event handlers for its output and lifecycle events, and waits for a specific readiness signal.
-*   **Run:** `run()` method sends JavaScript code to the Node.js process's stdin, buffers its output, and yields `IMessage` objects until an end-of-execution marker is detected. It ensures only one execution runs at a time using an `isBusy` flag.
-*   **Stop:** `stop()` method terminates the Node.js child process.
-*   **Persistence:** The interactive Node.js session maintains its state (e.g., global variables, loaded modules) between consecutive `run` calls, facilitating multi-step JavaScript tasks.
-
-**Invariant Preservation:**
-*   **Ordered Execution:** Guarantees that JavaScript code blocks are executed sequentially within the same Node.js context, maintaining the correct order of operations and variable dependencies.
-*   **Comprehensive Output:** Ensures that all `stdout` and `stderr` produced by a code block are fully captured and reported, even in cases of extensive output or runtime errors.
-*   **Session State:** The Node.js interactive session's state remains intact and accessible across `run` calls, allowing for iterative development and debugging within the same environment.
-
-**Outputs:** An `AsyncGenerator<IMessage>` yielding `IMessage` objects for `stdout` content (role `function`, name `output`) or `stderr`/exception messages (role `function`, name `error`).
-
-### Implementation Code
-
-```typescript
-import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
-import { IMessage, ICodeInterpreter } from './interfaces'; // Assuming interfaces are in 'interfaces.ts'
-
-export class JavaScriptCodeExecutionEngine implements ICodeInterpreter {
-  public readonly language = 'javascript';
-  private process: ChildProcessWithoutNullStreams | null = null;
-  private outputBuffer: string = '';
-  private errorBuffer: string = '';
-  private resolveExecution: (() => void) | null = null;
-  private rejectExecution: ((error: Error) => void) | null = null;
-  private isBusy: boolean = false;
-  private verbose: boolean = false; // Add verbose flag, perhaps configurable
-
-  constructor(options?: { verbose?: boolean }) {
-    this.verbose = options?.verbose ?? false;
-  }
-
-  /**
-   * Starts the Node.js interactive interpreter process.
-   * It waits for a specific readiness signal from the interpreter.
-   */
-  public async start(): Promise<void> {
-    if (this.process) {
-      if (this.verbose) console.warn("[JavaScriptCodeExecutionEngine] JavaScript interpreter already started.");
-      return;
-    }
-
-    // Spawn Node.js in interactive mode, with a command to signal readiness
-    this.process = spawn('node', ['-i', '-e', 'console.log("OPEN_INTERPRETER_RUNTIME_ENGINE_JAVASCRIPT_READY")'], {
-      stdio: ['pipe', 'pipe', 'pipe'] // stdin, stdout, stderr are piped
-    });
-
-    if (!this.process.stdout || !this.process.stderr || !this.process.stdin) {
-      throw new Error("[JavaScriptCodeExecutionEngine] Failed to open stdio pipes for JavaScript process.");
-    }
-
-    this.process.stdout.on('data', (data) => {
-      this.outputBuffer += data.toString();
-      if (this.verbose) console.log(`[JavaScriptCodeExecutionEngine][STDOUT] Buffer growth: ${data.toString().trim()}`);
-    });
-
-    this.process.stderr.on('data', (data) => {
-      this.errorBuffer += data.toString();
-      if (this.verbose) console.log(`[JavaScriptCodeExecutionEngine][STDERR] Buffer growth: ${data.toString().trim()}`);
-    });
-
-    this.process.on('close', (code) => {
-      if (this.rejectExecution) {
-        this.rejectExecution(new Error(`[JavaScriptCodeExecutionEngine] JavaScript process exited unexpectedly with code ${code}`));
-      }
-      this.process = null;
-      this.isBusy = false;
-      if (this.verbose) console.log(`[JavaScriptCodeExecutionEngine] JavaScript process closed with code ${code}.`);
-    });
-
-    this.process.on('error', (err) => {
-      if (this.rejectExecution) {
-        this.rejectExecution(err);
-      }
-      console.error("[JavaScriptCodeExecutionEngine] JavaScript process error:", err);
-      this.process = null;
-      this.isBusy = false;
-    });
-
-    // Wait for the interpreter to signal readiness
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.process?.kill();
-        reject(new Error("[JavaScriptCodeExecutionEngine] JavaScript interpreter startup timed out."));
-      }, 15000); // 15 seconds timeout
-
-      const onData = (data: Buffer) => {
-        const str = data.toString();
-        if (str.includes("OPEN_INTERPRETER_RUNTIME_ENGINE_JAVASCRIPT_READY")) {
-          clearTimeout(timeout);
-          this.process?.stdout?.off('data', onData);
-          if (this.verbose) console.log("[JavaScriptCodeExecutionEngine] JavaScript interpreter is ready.");
-          resolve();
-        }
-      };
-      this.process?.stdout?.on('data', onData);
-    });
-  }
-
-  /**
-   * Executes a given JavaScript code block in the persistent interpreter session.
-   * It uses a unique token to detect the end of the execution.
-   * @param code The JavaScript code string to execute.
-   * @returns An AsyncGenerator that yields IMessage objects for output and errors.
-   */
-  public async *run(code: string): AsyncGenerator<IMessage> {
-    if (!this.process || !this.process.stdin) {
-      yield { role: 'function', name: 'error', content: '[JavaScriptCodeExecutionEngine] JavaScript interpreter not running.' };
-      return;
-    }
-    if (this.isBusy) {
-      yield { role: 'function', name: 'error', content: '[JavaScriptCodeExecutionEngine] JavaScript interpreter is currently busy with another execution.' };
-      return;
-    }
-
-    this.isBusy = true;
-    this.outputBuffer = '';
-    this.errorBuffer = '';
-
-    const executionPromise = new Promise<void>((resolve, reject) => {
-      this.resolveExecution = resolve;
-      this.rejectExecution = reject;
-    });
-
-    // Use a unique token to mark the end of execution and flush stdout
-    const endOfExecutionToken = `---OPEN_INTERPRETER_RUNTIME_ENGINE_JAVASCRIPT_END_${Date.now()}---`;
-    // In Node.js interactive mode, we typically use console.log for output and flushing.
-    const wrappedCode = `${code}\nconsole.log('${endOfExecutionToken}')\n`;
-
-    try {
-      this.process.stdin.write(wrappedCode);
-    } catch (e) {
-      this.isBusy = false;
-      yield { role: 'function', name: 'error', content: `[JavaScriptCodeExecutionEngine] Failed to write to Node.js stdin: ${e}` };
-      return;
-    }
-
-    let currentStdoutSegment = '';
-    let currentStderrSegment = '';
-
-    const handleStdout = (data: Buffer) => {
-      const str = data.toString();
-      currentStdoutSegment += str;
-      if (currentStdoutSegment.includes(endOfExecutionToken)) {
-        const parts = currentStdoutSegment.split(endOfExecutionToken);
-        this.outputBuffer += parts[0];
-        currentStdoutSegment = parts[1] || '';
-        if (this.resolveExecution) {
-          this.resolveExecution();
-        }
-      } else {
-        this.outputBuffer += str;
-      }
-    };
-
-    const handleStderr = (data: Buffer) => {
-      const str = data.toString();
-      currentStderrSegment += str;
-      this.errorBuffer += str;
-    };
-
-    this.process.stdout.on('data', handleStdout);
-    this.process.stderr.on('data', handleStderr);
-
-    try {
-      await executionPromise;
-    } catch (e: any) {
-      yield { role: 'function', name: 'error', content: e.message || '[JavaScriptCodeExecutionEngine] Unknown error during JavaScript execution.' };
-    } finally {
-      this.process.stdout.off('data', handleStdout);
-      this.process.stderr.off('data', handleStderr);
-      this.isBusy = false;
-      this.resolveExecution = null;
-      this.rejectExecution = null;
-    }
-
-    const cleanedOutput = this.outputBuffer.replace(`\n'${endOfExecutionToken}'`, '').trim();
-    if (cleanedOutput) {
-      yield { role: 'function', name: 'output', content: cleanedOutput };
-    }
-    if (this.errorBuffer.trim()) {
-      yield { role: 'function', name: 'error', content: this.errorBuffer.trim() };
-    }
-  }
-
-  /**
-   * Stops the Node.js interpreter process.
-   */
-  public async stop(): Promise<void> {
-    if (this.process) {
-      if (this.verbose) console.log("[JavaScriptCodeExecutionEngine] Stopping JavaScript interpreter...");
-      this.process.kill();
-      this.process = null;
-      this.isBusy = false;
-    }
-  }
-
-  /**
-   * Resets the JavaScript interpreter by stopping and restarting the process.
-   * This clears all defined variables and imported modules.
-   */
-  public async reset(): Promise<void> {
-    if (this.verbose) console.log("[JavaScriptCodeExecutionEngine] Resetting JavaScript interpreter.");
-    await this.stop();
-    await this.start();
-  }
+/**
+ * Abstract interface for an external Language Model client.
+ * Replace with actual LLM client integration (e.g., OpenAI API, local LLM).
+ */
+export interface LLMClient {
+    /**
+     * Generates a response from the LLM based on the provided conversation history.
+     * @param messages The current conversation history.
+     * @returns A promise resolving to the LLM's generated message.
+     */
+    generate(messages: Message[]): Promise<Message>;
 }
-```
 
----
+/**
+ * Dummy LLM client for demonstration purposes.
+ * It simulates an LLM that can generate text and simple code blocks.
+ */
+class DummyLLMClient implements LLMClient {
+    private turn = 0;
 
-## Engine 4: ShellCodeExecutionEngine
+    async generate(messages: Message[]): Promise<Message> {
+        // Simulate LLM latency
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-### What it does
+        // Simple logic to simulate LLM behavior
+        const lastUserMessage = messages.filter(m => m.role === 'user').pop()?.content?.toLowerCase();
 
-The `ShellCodeExecutionEngine` provides the capability to execute arbitrary shell commands. Unlike the Python and JavaScript engines which maintain interactive sessions, this engine typically executes each command in a new, independent sub-shell process.
-
-1.  **Command Execution:** Takes a shell command string and executes it directly using the system's default shell (e.g., `bash`, `sh`, `zsh`).
-2.  **Output Capture:** Captures both standard output (`stdout`) and standard error (`stderr`) streams generated by the executed command.
-3.  **Result Reporting:** Formats the captured `stdout` as an `IMessage` with `name: 'output'` and `stderr` as an `IMessage` with `name: 'error'`.
-4.  **Error Handling:** Detects non-zero exit codes from shell commands, which typically indicate an error, and reports them appropriately.
-
-**Inputs:** A shell command string.
-
-**State Lifecycle:**
-*   **Initialization:** Constructor prepares the engine. No persistent process is managed in its default mode.
-*   **Start:** `start()` method indicates readiness but doesn't necessarily spawn a long-lived process, as each `run` call typically creates a new shell instance.
-*   **Run:** `run()` method spawns a child process for the shell, passes the command using the `-c` flag, waits for its completion, and collects all output.
-*   **Stop:** `stop()` method performs cleanup, but for a non-persistent shell, there's usually no active process to terminate.
-
-**Invariant Preservation:**
-*   **Command Isolation:** Each `run` call executes in a fresh shell environment (unless explicitly configured for persistence), ensuring that commands do not inadvertently interfere with the state of previous or subsequent commands. This simplifies reasoning about side effects.
-*   **Reliable Output:** Guarantees that all `stdout` and `stderr` generated by a shell command are fully captured and returned.
-*   **Error Indication:** Accurately reports the success or failure of a command based on its exit code, providing crucial feedback to the `AgenticLoopEngine`.
-
-**Outputs:** An `AsyncGenerator<IMessage>` yielding `IMessage` objects for `stdout` content (role `function`, name `output`) or `stderr`/error messages (role `function`, name `error`).
-
-### Implementation Code
-
-```typescript
-import { spawn } from 'child_process';
-import { IMessage, ICodeInterpreter } from './interfaces'; // Assuming interfaces are in 'interfaces.ts'
-
-export class ShellCodeExecutionEngine implements ICodeInterpreter {
-  public readonly language = 'sh';
-  private verbose: boolean = false; // Add verbose flag, perhaps configurable
-
-  constructor(options?: { verbose?: boolean }) {
-    this.verbose = options?.verbose ?? false;
-  }
-
-  /**
-   * Initializes the shell interpreter. For shell, this typically means ensuring the shell is available.
-   * No persistent process is started as each 'run' command will typically spawn a new process.
-   */
-  public async start(): Promise<void> {
-    if (this.verbose) console.log("[ShellCodeExecutionEngine] Shell interpreter ready (commands will be executed directly).");
-    // No-op for a non-persistent shell, as processes are spawned per 'run' call.
-    // One could add a check here to ensure 'sh' or 'bash' is available.
-  }
-
-  /**
-   * Executes a given shell command. Each command is run in a new sub-shell.
-   * @param code The shell command string to execute.
-   * @returns An AsyncGenerator that yields IMessage objects for output and errors.
-   */
-  public async *run(code: string): AsyncGenerator<IMessage> {
-    let stdoutBuffer = '';
-    let stderrBuffer = '';
-
-    // Determine the shell to use. Prefer SHELL environment variable, otherwise default to '/bin/sh'.
-    const shellCommand = process.env.SHELL || '/bin/sh';
-    const args = ['-c', code]; // '-c' flag tells the shell to read commands from the string argument
-
-    if (this.verbose) console.log(`[ShellCodeExecutionEngine] Executing command: ${shellCommand} ${args.join(' ')}`);
-
-    const childProcess = spawn(shellCommand, args, {
-      stdio: ['ignore', 'pipe', 'pipe'] // stdin ignored as code is passed via -c, stdout/stderr are piped
-    });
-
-    if (!childProcess.stdout || !childProcess.stderr) {
-      yield { role: 'function', name: 'error', content: '[ShellCodeExecutionEngine] Failed to open stdio pipes for shell process.' };
-      return;
-    }
-
-    // Capture stdout data
-    childProcess.stdout.on('data', (data) => {
-      stdoutBuffer += data.toString();
-      if (this.verbose) console.log(`[ShellCodeExecutionEngine][STDOUT] Buffer growth: ${data.toString().trim()}`);
-    });
-
-    // Capture stderr data
-    childProcess.stderr.on('data', (data) => {
-      stderrBuffer += data.toString();
-      if (this.verbose) console.log(`[ShellCodeExecutionEngine][STDERR] Buffer growth: ${data.toString().trim()}`);
-    });
-
-    // Wait for the command to finish executing
-    await new Promise<void>((resolve, reject) => {
-      childProcess.on('close', (code) => {
-        if (code !== 0) {
-          // Non-zero exit code indicates an error
-          reject(new Error(`[ShellCodeExecutionEngine] Shell command exited with code ${code}. Stderr: ${stderrBuffer.trim()}`));
-        } else {
-          resolve();
+        if (!lastUserMessage) {
+            return { role: 'assistant', content: "Hello! How can I help you today?" };
         }
-      });
-      childProcess.on('error', (err) => {
-        reject(new Error(`[ShellCodeExecutionEngine] Failed to spawn shell process: ${err.message}`));
-      });
-    });
 
-    // Yield any captured stdout
-    if (stdoutBuffer.trim()) {
-      yield { role: 'function', name: 'output', content: stdoutBuffer.trim() };
+        if (lastUserMessage.includes('hello')) {
+            return { role: 'assistant', content: "Hi there! I'm an AI assistant. What can I do for you?" };
+        }
+
+        if (lastUserMessage.includes('time in python')) {
+            this.turn++;
+            if (this.turn === 1) {
+                return {
+                    role: 'assistant',
+                    content: "I can help with that. Here's a Python script to get the current time:\n\n```python\nimport datetime\nprint(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))\n```"
+                };
+            } else if (this.turn === 2 && messages.some(m => m.tool_output && m.tool_output.includes('20'))) { // Assuming a time output
+                this.turn = 0; // Reset
+                return { role: 'assistant', content: `The current time according to Python is: ${messages.filter(m => m.tool_output).pop()?.tool_output}. Is there anything else?` };
+            }
+        }
+        
+        if (lastUserMessage.includes('sum in js')) {
+            this.turn++;
+            if (this.turn === 1) {
+                return {
+                    role: 'assistant',
+                    content: "Sure, I can execute JavaScript. Here's a simple sum:\n\n```javascript\nlet a = 10;\nlet b = 20;\nconsole.log('The sum is:', a + b);\n```"
+                };
+            } else if (this.turn === 2 && messages.some(m => m.tool_output && m.tool_output.includes('The sum is: 30'))) {
+                this.turn = 0;
+                return { role: 'assistant', content: `The JavaScript interpreter returned: ${messages.filter(m => m.tool_output).pop()?.tool_output}. Anything else?` };
+            }
+        }
+
+        if (lastUserMessage.includes('list files')) {
+             this.turn++;
+             if (this.turn === 1) {
+                return {
+                    role: 'assistant',
+                    content: "I can list files in the current directory using a shell command.\n\n```shell\nls -l\n```"
+                };
+            } else if (this.turn === 2 && messages.some(m => m.tool_output && m.tool_output.includes('total'))) { // Typical ls -l output
+                this.turn = 0;
+                return { role: 'assistant', content: `Here's what I found in the current directory:\n${messages.filter(m => m.tool_output).pop()?.tool_output}\nWhat's next?` };
+            }
+        }
+
+        if (lastUserMessage.includes('exit') || lastUserMessage.includes('bye')) {
+            return { role: 'assistant', content: "Goodbye! It was a pleasure assisting you." };
+        }
+
+        return { role: 'assistant', content: `I received your message: "${lastUserMessage}". I'm not sure how to respond to that, could you try asking about the time in Python or a sum in JS?` };
     }
-    // Yield any captured stderr (even if exit code was 0, warnings can be in stderr)
-    if (stderrBuffer.trim()) {
-      yield { role: 'function', name: 'error', content: stderrBuffer.trim() };
-    }
-  }
-
-  /**
-   * Stops the shell interpreter. For this model, there's no persistent process to stop.
-   */
-  public async stop(): Promise<void> {
-    if (this.verbose) console.log("[ShellCodeExecutionEngine] Shell interpreter stopped (no active process).");
-    // No-op for a non-persistent shell.
-  }
-
-  /**
-   * Resets the shell interpreter. For this model, it's a no-op as each run is stateless.
-   */
-  public async reset(): Promise<void> {
-    if (this.verbose) console.log("[ShellCodeExecutionEngine] Resetting Shell interpreter (no-op for stateless execution).");
-    // No-op for a non-persistent shell.
-  }
 }
+
+/**
+ * The core orchestration engine for OpenInterpreterRuntimeEngine.
+ * Manages conversation flow, LLM interaction, and code execution.
+ */
+export class InteractionOrchestrationEngine {
+    private messages: Message[] = [];
+    private codeExecutor: CodeExecutionEngine;
+    private llmClient: LLMClient;
+    private readonly availableLanguages: string[] = ['python', 'javascript', 'shell'];
+
+    constructor(llmClient: LLMClient = new DummyLLMClient(), codeExecutor?: CodeExecutionEngine) {
+        this.llmClient = llmClient;
+        this.codeExecutor = codeExecutor || new CodeExecutionEngine();
+    }
+
+    /**
+     * Starts the code execution engine's sessions.
+     */
+    public async initialize(): Promise<void> {
+        console.log("[InteractionOrchestrationEngine]: Initializing code execution sessions...");
+        await Promise.all(this.availableLanguages.map(lang => this.codeExecutor.startSession(lang)));
+        console.log("[InteractionOrchestrationEngine]: Code execution sessions initialized.");
+    }
+
+    /**
+     * Clears the conversation history.
+     */
+    public reset(): void {
+        this.messages = [];
+        console.log("[InteractionOrchestrationEngine]: Conversation history reset.");
+    }
+
+    /**
+     * Processes a user input and yields messages as the conversation progresses.
+     * @param input The user's message.
+     * @returns An AsyncGenerator yielding Message objects representing the interaction turns.
+     */
+    public async *chat(input: string): AsyncGenerator<Message, void, unknown> {
+        this.messages.push({ role: 'user', content: input });
+        yield this.messages[this.messages.length - 1]; // Yield user message
+
+        while (true) {
+            const llmResponse = await this.llmClient.generate(this.messages);
+            this.messages.push(llmResponse);
+            yield llmResponse; // Yield LLM's raw response (can be text or code instruction)
+
+            if (llmResponse.content) {
+                const codeBlocks = this.extractCodeBlocks(llmResponse.content);
+                if (codeBlocks.length > 0) {
+                    for (const block of codeBlocks) {
+                        if (!this.availableLanguages.includes(block.language)) {
+                            const errorMsg = `Unsupported language '${block.language}'. Available: ${this.availableLanguages.join(', ')}`;
+                            const errorObservation: Message = { role: 'tool', tool_output: errorMsg };
+                            this.messages.push(errorObservation);
+                            yield errorObservation;
+                            // Continue to LLM with error observation
+                            continue;
+                        }
+
+                        const codeMessage: Message = { role: 'assistant', tool_code: block };
+                        this.messages.push(codeMessage);
+                        yield codeMessage; // Yield the code block as a tool call
+
+                        let output: string;
+                        try {
+                            output = await this.codeExecutor.executeCode(block.language, block.code);
+                        } catch (error: any) {
+                            output = `Error during execution:\n${error.message || String(error)}`;
+                        }
+
+                        const observationMessage: Message = { role: 'tool', tool_output: output };
+                        this.messages.push(observationMessage);
+                        yield observationMessage; // Yield code output (observation)
+                        // Loop will continue, LLM will see this observation
+                    }
+                    // If code was executed, the loop continues to feed observations back to LLM
+                    continue;
+                } else {
+                    // LLM produced only text, no code. This is likely a final response.
+                    // Check for explicit termination in LLM's response
+                    if (llmResponse.content.toLowerCase().includes('goodbye') || llmResponse.content.toLowerCase().includes('exit')) {
+                        console.log("[InteractionOrchestrationEngine]: LLM indicates conversation end.");
+                        return; // Exit the generator
+                    }
+                    // Otherwise, LLM's text response is the final yield for this user turn.
+                    return; // Exit the generator
+                }
+            } else if (llmResponse.tool_code) {
+                // If LLM directly provides a tool_code (structured output)
+                const block = llmResponse.tool_code;
+                if (!this.availableLanguages.includes(block.language)) {
+                    const errorMsg = `Unsupported language '${block.language}'. Available: ${this.availableLanguages.join(', ')}`;
+                    const errorObservation: Message = { role: 'tool', tool_output: errorMsg };
+                    this.messages.push(errorObservation);
+                    yield errorObservation;
+                    continue;
+                }
+
+                // LLM's tool_code is already represented by llmResponse. Yield it.
+                // Yield the code block as a tool call
+                yield llmResponse;
+
+                let output: string;
+                try {
+                    output = await this.codeExecutor.executeCode(block.language, block.code);
+                } catch (error: any) {
+                    output = `Error during execution:\n${error.message || String(error)}`;
+                }
+
+                const observationMessage: Message = { role: 'tool', tool_output: output };
+                this.messages.push(observationMessage);
+                yield observationMessage;
+                // Loop continues, LLM sees observation
+                continue;
+
+            } else {
+                // LLM produced an empty or uninterpretable response.
+                console.warn("[InteractionOrchestrationEngine]: LLM returned an empty or unhandled message type. Terminating turn.");
+                return;
+            }
+        }
+    }
+
+    /**
+     * Extracts code blocks from a markdown-formatted string.
+     * @param text The text potentially containing code blocks.
+     * @returns An array of objects, each with a language and the code content.
+     */
+    private extractCodeBlocks(text: string): { language: string, code: string }[] {
+        const codeBlocks: { language: string, code: string }[] = [];
+        const regex = /```(\w+)\n([\s\S]*?)```/g;
+        let match;
+
+        while ((match = regex.exec(text)) !== null) {
+            const language = match[1].toLowerCase();
+            const code = match[2].trim();
+            codeBlocks.push({ language, code });
+        }
+        return codeBlocks;
+    }
+
+    /**
+     * Stops all active code execution engine sessions.
+     */
+    public async shutdown(): Promise<void> {
+        console.log("[InteractionOrchestrationEngine]: Shutting down code execution sessions...");
+        await this.codeExecutor.stopAllSessions();
+        console.log("[InteractionOrchestrationEngine]: All sessions shut down.");
+    }
+}
+
+// Example usage:
+(async () => {
+    console.log("Starting OpenInterpreterRuntimeEngine Demo...");
+    const engine = new InteractionOrchestrationEngine(new DummyLLMClient());
+    await engine.initialize();
+
+    console.log("\n--- Chat with Python example ---");
+    let chatGenerator = engine.chat("Hello, can you tell me the current time in Python?");
+    for await (const message of chatGenerator) {
+        if (message.role === 'user') console.log(`🧑 User: ${message.content}`);
+        else if (message.role === 'assistant' && message.content) console.log(`🤖 Assistant: ${message.content}`);
+        else if (message.role === 'assistant' && message.tool_code) console.log(`🤖 Assistant calls tool (${message.tool_code.language}):\n${message.tool_code.code}`);
+        else if (message.role === 'tool' && message.tool_output) console.log(`🔧 Tool Output:\n${message.tool_output}`);
+    }
+
+    console.log("\n--- Chat with JavaScript example ---");
+    chatGenerator = engine.chat("Can you calculate 10 + 20 in JavaScript?");
+    for await (const message of chatGenerator) {
+        if (message.role === 'user') console.log(`🧑 User: ${message.content}`);
+        else if (message.role === 'assistant' && message.content) console.log(`🤖 Assistant: ${message.content}`);
+        else if (message.role === 'assistant' && message.tool_code) console.log(`🤖 Assistant calls tool (${message.tool_code.language}):\n${message.tool_code.code}`);
+        else if (message.role === 'tool' && message.tool_output) console.log(`🔧 Tool Output:\n${message.tool_output}`);
+    }
+
+    console.log("\n--- Chat with Shell example ---");
+    chatGenerator = engine.chat("List files in the current directory.");
+    for await (const message of chatGenerator) {
+        if (message.role === 'user') console.log(`🧑 User: ${message.content}`);
+        else if (message.role === 'assistant' && message.content) console.log(`🤖 Assistant: ${message.content}`);
+        else if (message.role === 'assistant' && message.tool_code) console.log(`🤖 Assistant calls tool (${message.tool_code.language}):\n${message.tool_code.code}`);
+        else if (message.role === 'tool' && message.tool_output) console.log(`🔧 Tool Output:\n${message.tool_output}`);
+    }
+
+    console.log("\n--- Conversation end ---");
+    chatGenerator = engine.chat("Goodbye");
+     for await (const message of chatGenerator) {
+        if (message.role === 'user') console.log(`🧑 User: ${message.content}`);
+        else if (message.role === 'assistant' && message.content) console.log(`🤖 Assistant: ${message.content}`);
+     }
+
+    await engine.shutdown();
+    console.log("OpenInterpreterRuntimeEngine Demo Finished.");
+})();
 ```
