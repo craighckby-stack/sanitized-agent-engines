@@ -8,3 +8,5 @@ All vendor trademarks and proprietary branding have been scrubbed into isolated,
 | Engine Name | Implementation | Source Origin | Status | Indexed Date |
 | :--- | :--- | :--- | :--- | :--- |
 | [open-interpreter](./engines/open-interpreter/specification.md) | [runtime.ts](./engines/open-interpreter/runtime.ts) | `KillianLucas/open-interpreter` | Clean-Room Sanitized | 2026-09-24 |
+
+| [langgraph](./engines/langgraph/specification.md) | [runtime.ts](./engines/langgraph/runtime.ts) | `langchain-ai/langgraph` | Clean-Room Sanitized | 2026-09-24 |
