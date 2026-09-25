@@ -8,40 +8,49 @@
  */
 
 export interface SessionMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'tool' | 'system';
-  content: string;
-  thought?: string;
-  toolCallId?: string;
-  timestamp: number;
+  readonly id: string;
+  readonly role: 'user' | 'assistant' | 'tool' | 'system';
+  readonly content: string;
+  readonly thought?: string;
+  readonly toolCallId?: string;
+  readonly timestamp: number;
 }
 
 export interface SessionTreeNode {
-  id: string;
-  parentId: string | null;
-  message: SessionMessage;
-  children: string[];
+  readonly id: string;
+  readonly parentId: string | null;
+  readonly message: SessionMessage;
+  readonly children: string[];
+}
+
+export interface TokenBudgetSummary {
+  readonly currentTokens: number;
+  readonly remainingTokens: number;
+  readonly isWithinBudget: boolean;
 }
 
 export class AutoGPTSessionTreeEngine {
-  private nodes = new Map<string, SessionTreeNode>();
+  private readonly nodes = new Map<string, SessionTreeNode>();
   private activeLeafId: string | null = null;
   private rootId: string | null = null;
 
   public initRoot(systemPrompt: string): string {
     this.nodes.clear();
+    
     const rootMessage: SessionMessage = {
       id: 'msg_root',
       role: 'system',
       content: systemPrompt,
       timestamp: Date.now(),
     };
+
     const rootNode: SessionTreeNode = {
       id: 'node_root',
       parentId: null,
       message: rootMessage,
       children: [],
     };
+
     this.nodes.set(rootNode.id, rootNode);
     this.rootId = rootNode.id;
     this.activeLeafId = rootNode.id;
@@ -49,14 +58,16 @@ export class AutoGPTSessionTreeEngine {
   }
 
   public appendMessage(msg: Omit<SessionMessage, 'id' | 'timestamp'>): string {
-    const id = `msg_${Math.random().toString(36).substring(2, 9)}`;
+    const randomHash = Math.random().toString(36).substring(2, 9);
+    const id = `msg_${randomHash}`;
+    const nodeId = `node_${randomHash}`;
+    const parentId = this.activeLeafId;
+
     const fullMsg: SessionMessage = {
       ...msg,
       id,
       timestamp: Date.now(),
     };
-    const nodeId = `node_${Math.random().toString(36).substring(2, 9)}`;
-    const parentId = this.activeLeafId;
 
     const node: SessionTreeNode = {
       id: nodeId,
@@ -65,8 +76,11 @@ export class AutoGPTSessionTreeEngine {
       children: [],
     };
 
-    if (parentId && this.nodes.has(parentId)) {
-      this.nodes.get(parentId)!.children.push(nodeId);
+    if (parentId !== null) {
+      const parentNode = this.nodes.get(parentId);
+      if (parentNode) {
+        parentNode.children.push(nodeId);
+      }
     }
 
     this.nodes.set(nodeId, node);
@@ -78,8 +92,11 @@ export class AutoGPTSessionTreeEngine {
     const history: SessionMessage[] = [];
     let currentId = this.activeLeafId;
 
-    while (currentId && this.nodes.has(currentId)) {
-      const node = this.nodes.get(currentId)!;
+    while (currentId !== null) {
+      const node = this.nodes.get(currentId);
+      if (!node) {
+        break;
+      }
       history.unshift(node.message);
       currentId = node.parentId;
     }
@@ -94,14 +111,20 @@ export class AutoGPTSessionTreeEngine {
     this.activeLeafId = fromNodeId;
   }
 
-  public computeTokenBudget(maxTokens = 8192): { currentTokens: number; remainingTokens: number; isWithinBudget: boolean } {
+  public computeTokenBudget(maxTokens = 8192): TokenBudgetSummary {
     const history = this.getLinearHistory();
     let totalChars = 0;
-    for (const m of history) {
-      totalChars += m.content.length + (m.thought ? m.thought.length : 0);
+
+    for (const message of history) {
+      totalChars += message.content.length;
+      if (message.thought) {
+        totalChars += message.thought.length;
+      }
     }
+
     const currentTokens = Math.ceil(totalChars / 4);
     const remainingTokens = Math.max(0, maxTokens - currentTokens);
+
     return {
       currentTokens,
       remainingTokens,
