@@ -355,98 +355,26 @@ Line 69, Col 1: Declaration or statement expected.
 ```
 **CONSTRAINT (Model Generalization):** Never repeat code patterns that produce this compiler/linter error on engines/claude-seo/03-claude-seo-unified-model-stream-adapter.ts.
 
-### ❌ [2026-09-25] engines/claude-seo/04-claude-seo-tool-sandbox-virtual-file-system-engine.ts `source: mutation-cycle`
-**Symptom:** AST / TypeScript Compiler Validation Rejected
-**EVIDENCE (Machine-Copied Fact):**
-```
-Line 17, Col 20: '{' expected.
-Line 17, Col 42: ';' expected.
-Line 18, Col 3: Declaration or statement expected.
-Line 20, Col 27: ',' expected.
-Line 20, Col 58: ';' expected.
-Line 26, Col 3: Declaration or statement expected.
-Line 26, Col 28: ',' expected.
-Line 26, Col 37: ';' expected.
-Line 26, Col 39: Unexpected keyword or identifier.
-Line 27, Col 38: Unterminated regular expression literal.
-Line 27, Col 72: ')' expected.
-Line 30, Col 3: Declaration or statement expected.
-Line 30, Col 24: ',' expected.
-Line 30, Col 41: ',' expected.
-Line 30, Col 50: ';' expected.
-Line 31, Col 11: ':' expected.
-Line 31, Col 48: ',' expected.
-Line 32, Col 9: ':' expected.
-Line 37, Col 7: ',' expected.
-Line 40, Col 3: Declaration or statement expected.
-Line 40, Col 23: ',' expected.
-Line 40, Col 32: ';' expected.
-Line 40, Col 34: Unexpected keyword or identifier.
-Line 49, Col 3: Declaration or statement expected.
-Line 49, Col 21: ',' expected.
-Line 49, Col 30: ';' expected.
-Line 49, Col 32: Unexpected keyword or identifier.
-Line 53, Col 3: Declaration or statement expected.
-Line 53, Col 25: ',' expected.
-Line 53, Col 34: ';' expected.
-Line 53, Col 36: Unexpected keyword or identifier.
-Line 57, Col 3: Declaration or statement expected.
-Line 57, Col 36: ';' expected.
-Line 57, Col 45: An element access expression should take an argument.
-Line 57, Col 47: ';' expected.
-Line 68, Col 3: Declaration or statement expected.
-Line 68, Col 29: ',' expected.
-Line 68, Col 54: ',' expected.
-Line 68, Col 82: ',' expected.
-Line 68, Col 91: ';' expected.
-Line 68, Col 93: Unexpected keyword or identifier.
-Line 79, Col 20: '{' expected.
-Line 79, Col 36: ';' expected.
-Line 80, Col 3: Declaration or statement expected.
-Line 82, Col 27: ',' expected.
-Line 82, Col 58: ';' expected.
-Line 86, Col 3: Declaration or statement expected.
-Line 86, Col 21: ';' expected.
-Line 96, Col 3: Declaration or statement expected.
-Line 96, Col 10: Unexpected keyword or identifier.
-Line 96, Col 34: ',' expected.
-Line 96, Col 48: ',' expected.
-Line 96, Col 62: ',' expected.
-Line 96, Col 84: ';' expected.
-Line 97, Col 11: ':' expected.
-Line 97, Col 29: ',' expected.
-Line 98, Col 9: ',' expected.
-Line 98, Col 20: ',' expected.
-Line 99, Col 9: ',' expected.
-Line 99, Col 24: ',' expected.
-Line 101, Col 9: ':' expected.
-Line 102, Col 16: ',' expected.
-Line 102, Col 31: ',' expected.
-Line 102, Col 33: Property assignment expected.
-Line 104, Col 9: Declaration or statement expected.
-Line 118, Col 7: 'try' expected.
-Line 130, Col 3: Declaration or statement expected.
-Line 132, Col 3: Declaration or statement expected.
-Line 132, Col 11: Unexpected keyword or identifier.
-Line 132, Col 33: ',' expected.
-Line 132, Col 42: ';' expected.
-Line 133, Col 11: ':' expected.
-Line 133, Col 31: ',' expected.
-Line 134, Col 9: Identifier expected.
-Line 134, Col 19: '{' expected.
-Line 134, Col 26: ':' expected.
-Line 134, Col 28: ',' expected.
-Line 136, Col 11: ':' expected.
-Line 136, Col 39: ',' expected.
-Line 137, Col 11: ':' expected.
-Line 137, Col 29: ',' expected.
-Line 139, Col 17: ',' expected.
-Line 139, Col 27: ';' expected.
-Line 160, Col 3: Declaration or statement expected.
-Line 162, Col 3: Declaration or statement expected.
-Line 162, Col 24: ',' expected.
-Line 162, Col 33: ';' expected.
-Line 162, Col 35: Unexpected keyword or identifier.
-Line 165, Col 1: Declaration or statement expected.
-```
-**CONSTRAINT (Model Generalization):** Never repeat code patterns that produce this compiler/linter error on engines/claude-seo/04-claude-seo-tool-sandbox-virtual-file-system-engine.ts.
+---
+
+## Defensive Engineering Directives & Generation Safeguards
+
+### 🛡️ Directive 1: String Literal & Regular Expression Boundary Protection
+- **Root Cause Analysis:** Raw forward slashes inside unescaped regular expression literals (e.g. `/[^a-zA-Z0-9_\-\.\/]/g`) trigger parser-level Unterminated Regular Expression errors when template string substitutions or serialization passes fail to escape `/`.
+- **Mandate:** Always use explicit `new RegExp(...)` with escaped strings, or ensure literal regexes avoid unescaped slashes. Validate balanced delimiters across all lexical spans.
+
+### 🛡️ Directive 2: Pure TypeScript Declaration and Statement Isolation
+- **Root Cause Analysis:** Accidental placement of nested statements inside interface signatures, premature brace closures, or malformed object destructuring causes cascade AST token rejections (e.g., `'{' expected`, `Identifier expected. 'const' is a reserved word`).
+- **Mandate:** Maintain clean separation between TypeScript `interface`/`type` declarations and executable code. Verify block brace balance (`{` vs `}`) through rigorous nesting validation before mutation commits.
+
+### 🛡️ Directive 3: Unified Model Stream Adapter Syntactic Invariants
+- **Root Cause Analysis:** Dynamic stream mapping constructs with mismatched generic parameters or broken async generator signatures yield syntax failures at lines 18-69.
+- **Mandate:** All streaming adapters (`UnifiedModelStreamAdapter`, `ClaudeSeoStreamAdapter`) must use standard async iteration patterns `async function*` or typed `ReadableStreamDefaultReader` interfaces with explicit type guards and standard `try...catch...finally` exception envelopes.
+
+### 🛡️ Directive 4: Token Budget & Non-Linear Tree Mutation Invariants
+- **Root Cause Analysis:** Truncated inline arrow definitions within tree node visitation callbacks disrupt outer block scoping.
+- **Mandate:** Isolate token budget calculation routines into pure helper functions. Never inline multi-branch reduction lambdas directly inside deep parameter call positions.
+
+### 🛡️ Directive 5: Zero Tolerance for Incomplete Synthesizer Stubs
+- **Root Cause Analysis:** Automated generation truncated mid-file produces trailing syntax errors such as `Line 165, Col 1: Declaration or statement expected`.
+- **Mandate:** DARLEK CAAN synthesizers must execute end-to-end file completion verification. Every exported module must feature closed class bodies, closed exported namespaces, and complete EOF markers.
