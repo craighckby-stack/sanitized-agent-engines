@@ -295,3 +295,12 @@ Line 139, Col 42: ';' expected.
 Line 139, Col 50: Unexpected keyword or identifier.
 ```
 **CONSTRAINT (Model Generalization):** Never repeat code patterns that produce this compiler/linter error on engines/claude-seo/05-claude-seo-non-linear-session-tree-token-budget-engine.ts.
+
+### ❌ [2026-09-25] engines/autogpt/04-autogpt-tool-sandbox-virtual-file-system-engine.ts `source: mutation-cycle`
+**Symptom:** AST / TypeScript Compiler Validation Rejected
+**EVIDENCE (Machine-Copied Fact):**
+```
+Line 27, Col 38: Unterminated regular expression literal.
+Line 27, Col 72: ')' expected.
+```
+**CONSTRAINT (Model Generalization):** Never repeat code patterns that produce this compiler/linter error on engines/autogpt/04-autogpt-tool-sandbox-virtual-file-system-engine.ts.
