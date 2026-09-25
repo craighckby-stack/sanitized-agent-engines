@@ -12,6 +12,7 @@ All vendor trademarks and proprietary branding have been scrubbed into isolated,
 | [aider](./aider/specification.md) | [specification.md](./aider/specification.md) · [runtime.ts](./aider/runtime.ts) · [01-aider-lifecycle-kernel.ts](./aider/01-aider-lifecycle-kernel.ts) · [02-aider-react-loop-engine.ts](./aider/02-aider-react-loop-engine.ts) · [03-aider-unified-model-stream-adapter.ts](./aider/03-aider-unified-model-stream-adapter.ts) · [04-aider-tool-sandbox-virtual-file-system-engine.ts](./aider/04-aider-tool-sandbox-virtual-file-system-engine.ts) · [05-aider-non-linear-session-tree-token-budget-engine.ts](./aider/05-aider-non-linear-session-tree-token-budget-engine.ts) | `Aider-AI/aider` | Clean-Room Sanitized | 2026-09-25 |
 | [crewAI](./crewai/specification.md) | [specification.md](./crewai/specification.md) · [runtime.ts](./crewai/runtime.ts) · [01-crewai-lifecycle-kernel.ts](./crewai/01-crewai-lifecycle-kernel.ts) · [02-crewai-react-loop-engine.ts](./crewai/02-crewai-react-loop-engine.ts) · [03-crewai-unified-model-stream-adapter.ts](./crewai/03-crewai-unified-model-stream-adapter.ts) · [04-crewai-tool-sandbox-virtual-file-system-engine.ts](./crewai/04-crewai-tool-sandbox-virtual-file-system-engine.ts) · [05-crewai-non-linear-session-tree-token-budget-engine.ts](./crewai/05-crewai-non-linear-session-tree-token-budget-engine.ts) | `crewAIInc/crewAI` | Clean-Room Sanitized | 2026-09-25 |
 | [open-interpreter](./open-interpreter/specification.md) | [specification.md](./open-interpreter/specification.md) · [runtime.ts](./open-interpreter/runtime.ts) · [01-open-interpreter-lifecycle-kernel.ts](./open-interpreter/01-open-interpreter-lifecycle-kernel.ts) · [02-open-interpreter-react-loop-engine.ts](./open-interpreter/02-open-interpreter-react-loop-engine.ts) · [03-open-interpreter-unified-model-stream-adapter.ts](./open-interpreter/03-open-interpreter-unified-model-stream-adapter.ts) · [04-open-interpreter-tool-sandbox-virtual-file-system-engine.ts](./open-interpreter/04-open-interpreter-tool-sandbox-virtual-file-system-engine.ts) · [05-open-interpreter-non-linear-session-tree-token-budget-engine.ts](./open-interpreter/05-open-interpreter-non-linear-session-tree-token-budget-engine.ts) | `KillianLucas/open-interpreter` | Clean-Room Sanitized | 2026-09-25 |
+| [litellm](./litellm/specification.md) | [specification.md](./litellm/specification.md) · [runtime.ts](./litellm/runtime.ts) · [01-litellm-lifecycle-kernel.ts](./litellm/01-litellm-lifecycle-kernel.ts) · [02-litellm-react-loop-engine.ts](./litellm/02-litellm-react-loop-engine.ts) · [03-litellm-unified-model-stream-adapter.ts](./litellm/03-litellm-unified-model-stream-adapter.ts) · [04-litellm-tool-sandbox-virtual-file-system-engine.ts](./litellm/04-litellm-tool-sandbox-virtual-file-system-engine.ts) · [05-litellm-non-linear-session-tree-token-budget-engine.ts](./litellm/05-litellm-non-linear-session-tree-token-budget-engine.ts) | `BerriAI/litellm` | Clean-Room Sanitized | 2026-09-25 |
 
 ---
 
@@ -42,13 +43,14 @@ Each engine namespace adheres strictly to the modular 5-pillar separation of con
 | `aider` | PASS (v1.0.0) | Verified (`AbortController`) | Verified (Root Jail) | Verified (Sliding Window) | Enforced |
 | `crewai` | PASS (v1.0.0) | Verified (`AbortController`) | Verified (Root Jail) | Verified (Sliding Window) | Enforced |
 | `open-interpreter`| PASS (v1.0.0) | Verified (`AbortController`) | Verified (Root Jail) | Verified (Sliding Window) | Enforced |
+| `litellm` | PASS (v1.0.0) | Verified (`AbortController`) | Verified (Root Jail) | Verified (Sliding Window) | Enforced |
 
 ---
 
 ### 4. Fail-Safe Orchestration & Cross-Engine Interoperability Matrix
 To guarantee resilient cross-pollination across heterogeneous agent paradigms, the DARLEK CAAN supervisor enforces strict interoperability semantics:
 
-- **State Interchange Schema**: Uniform state serialization across graph-based (`langgraph`), goal-directed (`autogpt`), repository-centric (`aider`), multi-role collaborative (`crewai`), and local-execution (`open-interpreter`) paradigms.
+- **State Interchange Schema**: Uniform state serialization across graph-based (`langgraph`), goal-directed (`autogpt`), repository-centric (`aider`), multi-role collaborative (`crewai`), local-execution (`open-interpreter`), and unified proxy router (`litellm`) paradigms.
 - **Cascading Fallback Protocol**: If an active engine hits step exhaustion, token saturation, or sandboxed execution denial, the supervisor triggers a deterministic state checkpoint handoff to an adjacent engine runtime without context loss.
 - **Zero-Trust Tool Boundary Validation**: Any tool invoked across engine boundaries undergoes strict JSON schema validation, regex-based command sanitizer checks, and argument canonicalization.
 
@@ -59,6 +61,7 @@ To guarantee resilient cross-pollination across heterogeneous agent paradigms, t
 | `aider` | `open-interpreter`, `langgraph` | VFS Delta & Commit Graph | Edit Session Node | 0% (Exact Checkpoint) |
 | `crewai` | `langgraph`, `autogpt` | Role State & Shared Blackboard | Sub-Agent Dispatcher | 0% (Exact Checkpoint) |
 | `open-interpreter` | `aider`, `langgraph` | Sandbox Output & Trace Log | Interpreter Shell Loop | 0% (Exact Checkpoint) |
+| `litellm` | `langgraph`, `autogpt` | Unified Proxy Request / Fallback Router | Routing Node | 0% (Exact Checkpoint) |
 
 ---
 
@@ -101,4 +104,5 @@ Each execution cycle emits cryptographically traceable, tamper-evident audit log
 
 ### 7. Clean-Room Provenance & Compliance Notice
 This catalogue contains entirely clean-room synthesized implementations. No proprietary, dual-licensed, or copyleft vendor source code was ingested or mirrored. Implementations are clean-room reimplementations designed around formal autonomous execution contracts and hardened defensive runtime invariants under the DARLEK CAAN Autonomous Architectural Standard.
+
 | [litellm](./litellm/specification.md) | [specification.md](./litellm/specification.md) · [runtime.ts](./litellm/runtime.ts) · [01-litellm-lifecycle-kernel.ts](./litellm/01-litellm-lifecycle-kernel.ts) · [02-litellm-react-loop-engine.ts](./litellm/02-litellm-react-loop-engine.ts) · [03-litellm-unified-model-stream-adapter.ts](./litellm/03-litellm-unified-model-stream-adapter.ts) · [04-litellm-tool-sandbox-virtual-file-system-engine.ts](./litellm/04-litellm-tool-sandbox-virtual-file-system-engine.ts) · [05-litellm-non-linear-session-tree-token-budget-engine.ts](./litellm/05-litellm-non-linear-session-tree-token-budget-engine.ts) | `BerriAI/litellm` | Clean-Room Sanitized | 2026-09-25 |
