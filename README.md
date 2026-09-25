@@ -10,16 +10,19 @@ Every engine in this catalogue conforms to strict architectural defenses:
 2. **Deterministic State Transitions**: State transitions are verifiable, observable, and snapshot-isolated to prevent state poisoning.
 3. **Execution Sandboxing**: Script and shell evaluators must implement CPU, memory, and timeout bounds with signal propagation guards.
 4. **Clean-Room Boundary**: Scrubbed API surfaces decouple domain algorithms from proprietary cloud endpoints, permitting pluggable local and air-gapped adapters.
+5. **Cryptographic Attestation & Integrity Verification**: Runtime modules, dependency trees, and contract schemas are validated against cryptographic hash manifests prior to initialization.
+6. **Defense-in-Depth Surface Hardening**: Input vectors, agent-generated commands, and inter-agent message buses enforce strict schema validation, input sanitization, and output boundary filtering.
+7. **Ephemeral Execution & State Scrubbing**: Runtime contexts are ephemeral by default; all scratchspaces, process trees, and temporary capability tokens are reliably eradicated on session termination.
 
 ## Extracted Engines
 
-| Engine Name | Implementation | Source Origin | Status | Indexed Date |
-| :--- | :--- | :--- | :--- | :--- |
-| [open-interpreter](./engines/open-interpreter/specification.md) | [runtime.ts](./engines/open-interpreter/runtime.ts) | `KillianLucas/open-interpreter` | Clean-Room Sanitized | 2026-09-24 |
-| [langgraph](./engines/langgraph/specification.md) | [runtime.ts](./engines/langgraph/runtime.ts) | `langchain-ai/langgraph` | Clean-Room Sanitized | 2026-09-24 |
-| [deepseek-harness](./engines/deepseek-harness/specification.md) | [runtime.ts](./engines/deepseek-harness/runtime.ts) | `deepseek-ai/deepseek-harness` | Clean-Room Sanitized | 2026-09-24 |
-| [AutoGPT](./engines/autogpt/specification.md) | [runtime.ts](./engines/autogpt/runtime.ts) | `Significant-Gravitas/AutoGPT` | Clean-Room Sanitized | 2026-09-24 |
-| [aider](./engines/aider/specification.md) | [runtime.ts](./engines/aider/runtime.ts) | `Aider-AI/aider` | Clean-Room Sanitized | 2026-09-24 |
+| Engine Name | Implementation | Source Origin | Status | Indexed Date | Integrity Protocol |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| [open-interpreter](./engines/open-interpreter/specification.md) | [runtime.ts](./engines/open-interpreter/runtime.ts) | `KillianLucas/open-interpreter` | Clean-Room Sanitized | 2026-09-24 | Lease-Bounded Shell Execution & Subprocess Isolation |
+| [langgraph](./engines/langgraph/specification.md) | [runtime.ts](./engines/langgraph/runtime.ts) | `langchain-ai/langgraph` | Clean-Room Sanitized | 2026-09-24 | Deterministic Cyclic Graph Transitions & State Checkpointing |
+| [deepseek-harness](./engines/deepseek-harness/specification.md) | [runtime.ts](./engines/deepseek-harness/runtime.ts) | `deepseek-ai/deepseek-harness` | Clean-Room Sanitized | 2026-09-24 | Strict Model Context Envelope & Token Budget Clamping |
+| [AutoGPT](./engines/autogpt/specification.md) | [runtime.ts](./engines/autogpt/runtime.ts) | `Significant-Gravitas/AutoGPT` | Clean-Room Sanitized | 2026-09-24 | Capability-Leased Workspace Jail & Command Deny-List |
+| [aider](./engines/aider/specification.md) | [runtime.ts](./engines/aider/runtime.ts) | `Aider-AI/aider` | Clean-Room Sanitized | 2026-09-24 | Atomic Diff Validation & Working-Tree Boundary Enforcement |
 
 ## Defensive Validation & Runtime Verification
 
@@ -28,3 +31,35 @@ To guarantee architectural integrity before deployment:
 - **Static Type Safety**: Validate all `runtime.ts` modules with strict type checking enabled (`noImplicitAny`, `strictNullChecks`).
 - **Telemetry & Audit Logging**: All agent actions emit structured, tamper-evident audit frames before and after critical operations.
 - **Fail-Safe Recovery**: Any unhandled exception or unverified token invocation must trip the runtime circuit breaker into a controlled halt without leaking environmental state.
+- **Capability Lease Audit**: Verify runtime token leases satisfy time-to-live (TTL) bounds and revocation listeners before issuing high-privilege primitives.
+- **Adversarial Invariant Proving**: Execute clean-room invariant fuzzing against engine state machines to assert no unhandled transitions or context escape pathways exist.
+
+## Architectural Deployment & Usage Pattern
+
+```typescript
+import { createEngineContext, LeaseScope } from "./engines/common/context";
+
+// 1. Establish isolated capability boundary
+const context = createEngineContext({
+  scope: LeaseScope.READ_ONLY,
+  timeoutMs: 30000,
+  memoryLimitMb: 512,
+  auditSink: (event) => console.log(JSON.stringify(event))
+});
+
+// 2. Instantiate and mount sanitized engine under capability contract
+const engine = await context.mountEngine("./engines/langgraph/runtime.ts");
+
+// 3. Deterministic execution with circuit-breaker protection
+try {
+  const result = await engine.execute({ /* validated payload */ });
+} catch (fault) {
+  await context.emergencyHalt(fault);
+} finally {
+  await context.dispose();
+}
+```
+
+## Security Disclosure & Integrity Reporting
+
+All vulnerabilities, context escape vectors, or unverified ambient authority pathways must be reported via defensive incident reporting protocols. Zero ambient access is non-negotiable. Clean-room certifications are re-evaluated upon every upstream extraction sweep.
