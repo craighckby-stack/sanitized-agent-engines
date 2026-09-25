@@ -387,6 +387,18 @@ Line 69, Col 1: Declaration or statement expected.
 - **Root Cause Analysis:** Claude SEO streaming chunks under token exhaustion or high burst frequencies trigger unmetered backpressure buffer accumulation, leading to memory pressure and lost frame events.
 - **Mandate:** Implement bounded circular streaming buffers (`maxBufferChunks: 1024`, ring buffer overflow drop-oldest strategy with explicit telemetry notification) across all stream adapter implementations.
 
+### 🛡️ Directive 8: Virtual File System Regex Boundary Hardening & Path Traversal Lockdown (G-41 Addition)
+- **Root Cause Analysis:** Dynamic path matching across heterogeneous OS separator conventions (`\` vs `/`) caused regular expression delimiter confusion and traversal vulnerabilities when normalizing paths in virtual filesystems across Autogen, AutoGPT, and Claude SEO engines.
+- **Mandate:** Path sanitization must use deterministic string algorithms or strictly precompiled constructor regexes: `new RegExp('^[/\\\\]?(?:[a-zA-Z0-9_.-]+[/\\\\])*[a-zA-Z0-9_.-]+$')`. Prohibit inline unescaped slash regex literals. Enforce path resolution strictly inside the isolated root (`/virtual/sandbox`).
+
+### 🛡️ Directive 9: ReAct Loop Step Monotonicity and Session Tree Rollback Integrity (G-41 Addition)
+- **Root Cause Analysis:** Session branching in non-linear trees combined with asynchronous ReAct step execution can introduce race conditions where token budgets decrement without corresponding tree node commits, or failed actions leave orphaned branches.
+- **Mandate:** Every ReAct action and session tree fork must execute inside a transactional commit/rollback envelope. If an action fails or the token budget breaches its lower threshold, the active session branch must rollback atomically to the last verified snapshot node.
+
+### 🛡️ Directive 10: Unified Stream Chunk Framing and Token Clamp Guarantees (G-41 Addition)
+- **Root Cause Analysis:** Discontinuous SSE chunks and partial JSON chunks delivered to Unified Model Stream Adapters without framing envelopes caused parse exceptions and unhandled promise rejections mid-stream.
+- **Mandate:** Streaming adapters must employ a stateful Byte-or-Character Chunk Reassembler (`StreamChunkAccumulator`) with max chunk size enforcement (64KB), utf-8 decoding tolerance, and graceful EOF flush guarantees.
+
 ---
 
 ## DARLEK CAAN Synthesis & Compiler Verification Protocols (G-29 & G-36 Invariants)
@@ -417,6 +429,13 @@ Line 69, Col 1: Declaration or statement expected.
    - ReAct loops must enforce a hard iteration maximum (`maxSteps: 30`) and execution timeout (`timeoutMs: 60000`).
    - Loop steps must record idempotent breadcrumbs enabling exact session replay during root-cause post-mortem generation.
 
+7. **Stream Chunk Framing & Reassembly Verification (G-41 Extended):**
+   - Stream parsers must never pass raw stream chunks directly to `JSON.parse`. Accumulate across boundary delimiters (`\n\n` or `data: ` prefixes) and safely handle incomplete multiline frames.
+   - Closed stream readers must reject subsequent writes with a typed `StreamClosedError` rather than crashing the worker event loop.
+
+8. **Transactional State Rollback Enforcement (G-41 Extended):**
+   - Branch node insertions into session tree topologies must implement dual-phase verification: clone state, apply delta, validate token consumption invariant, commit or rollback on exception.
+
 ### ❌ [2026-09-25] engines/autogen/04-autogen-tool-sandbox-virtual-file-system-engine.ts `source: mutation-cycle`
 **Symptom:** AST / TypeScript Compiler Validation Rejected
 **EVIDENCE (Machine-Copied Fact):**
@@ -425,12 +444,4 @@ Line 27, Col 38: Unterminated regular expression literal.
 Line 27, Col 72: ')' expected.
 ```
 **CONSTRAINT (Model Generalization):** Never repeat code patterns that produce this compiler/linter error on engines/autogen/04-autogen-tool-sandbox-virtual-file-system-engine.ts.
-
-### ❌ [2026-09-25] engines/autogpt/04-autogpt-tool-sandbox-virtual-file-system-engine.ts `source: mutation-cycle`
-**Symptom:** AST / TypeScript Compiler Validation Rejected
-**EVIDENCE (Machine-Copied Fact):**
-```
-Line 27, Col 38: Unterminated regular expression literal.
-Line 27, Col 72: ')' expected.
-```
-**CONSTRAINT (Model Generalization):** Never repeat code patterns that produce this compiler/linter error on engines/autogpt/04-autogpt-tool-sandbox-virtual-file-system-engine.ts.
+)
