@@ -14,7 +14,15 @@ export interface VFSFile {
   updatedAt: number;
 }
 
-export class claude-seoVirtualFileSystem {
+export interface ToolResult {
+  toolCallId: string;
+  name: string;
+  output: string;
+  isError: boolean;
+  durationMs: number;
+}
+
+export class ClaudeSeoVirtualFileSystem {
   private files = new Map<string, VFSFile>();
 
   constructor(initialFiles: Record<string, string> = {}) {
@@ -24,7 +32,8 @@ export class claude-seoVirtualFileSystem {
   }
 
   public normalizePath(path: string): string {
-    return '/' + path.trim().replace(/^[./\]+/, '').replace(/\+/g, '/');
+    const cleaned = path.trim().replace(new RegExp('^[./\\\\]+', 'g'), '').replace(new RegExp('\\\\', 'g'), '/');
+    return '/' + cleaned.replace(new RegExp('/+', 'g'), '/');
   }
 
   public writeFile(path: string, content: string): void {
@@ -76,11 +85,11 @@ export class claude-seoVirtualFileSystem {
   }
 }
 
-export class claude-seoToolSandbox {
-  private vfs: claude-seoVirtualFileSystem;
+export class ClaudeSeoToolSandbox {
+  private vfs: ClaudeSeoVirtualFileSystem;
 
   constructor(initialFiles: Record<string, string> = {}) {
-    this.vfs = new claude-seoVirtualFileSystem(initialFiles);
+    this.vfs = new ClaudeSeoVirtualFileSystem(initialFiles);
   }
 
   public getTools() {
@@ -133,11 +142,11 @@ export class claude-seoToolSandbox {
     const trimmed = cmd.trim();
     if (!trimmed) return '';
 
-    const parts = trimmed.split(/\s+/);
+    const parts = trimmed.split(new RegExp('\\s+', 'g'));
     const program = parts[0];
 
     if (program === 'echo') {
-      return trimmed.slice(5).replace(/^['"]|['"]$/g, '') + '\n';
+      return trimmed.slice(5).replace(new RegExp('^[\'\"]|[\'\"]$', 'g'), '') + '\n';
     }
     if (program === 'ls') {
       return this.vfs.listFiles().join('  \n') + '\n';
@@ -148,7 +157,7 @@ export class claude-seoToolSandbox {
     }
     if (program === 'python' || program === 'python3') {
       if (trimmed.includes('-c')) {
-        const code = trimmed.split('-c')[1]?.trim().replace(/^['"]|['"]$/g, '') || '';
+        const code = trimmed.split('-c')[1]?.trim().replace(new RegExp('^[\'\"]|[\'\"]$', 'g'), '') || '';
         return `[Python 3.11 Runtime Output]\n${code}\n>>> Execution finished with exitCode=0\n`;
       }
       const file = parts[1] || '';
@@ -160,6 +169,6 @@ export class claude-seoToolSandbox {
   }
 
   private sanitize(text: string): string {
-    return text.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+    return text.replace(new RegExp('[\\u001b\\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]', 'g'), '');
   }
 }
