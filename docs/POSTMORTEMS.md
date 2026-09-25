@@ -378,3 +378,25 @@ Line 69, Col 1: Declaration or statement expected.
 ### 🛡️ Directive 5: Zero Tolerance for Incomplete Synthesizer Stubs
 - **Root Cause Analysis:** Automated generation truncated mid-file produces trailing syntax errors such as `Line 165, Col 1: Declaration or statement expected`.
 - **Mandate:** DARLEK CAAN synthesizers must execute end-to-end file completion verification. Every exported module must feature closed class bodies, closed exported namespaces, and complete EOF markers.
+
+---
+
+## DARLEK CAAN Synthesis & Compiler Verification Protocols (G-29 Invariants)
+
+### 📋 Invariant Audit Checklist
+1. **Regular Expression Safety:**
+   - Prefer string constructor instantiation: `new RegExp('^[a-zA-Z0-9_\\-\\./]+$', 'g')` over slash-delimited literals when slashes are nested inside character classes.
+   - For all path normalization rules, verify slash escaping: `[/\\\]` vs `[/\\\\]`.
+
+2. **TypeScript AST Strict Token Parity:**
+   - Every opening brace `{` must match an identical depth closing brace `}`.
+   - Every interface must terminate every member definition with either `;` or newline, never embedding imperative logic (`const`, `let`, `for`, `try`).
+   - Generic type arguments must be fully closed before parameter list openings (e.g., `Map<string, Node<T>>` not `Map<string, Node<T>`).
+
+3. **Stream Pipeline Lifecycle Resilience:**
+   - Stream transformers must guarantee clean reader cancellation in `finally` blocks: `reader.cancel().catch(() => void 0)`.
+   - Async iterators must yield typed error structures rather than throwing uncaught exceptions across microtask boundaries.
+
+4. **Session Tree & Token Budget Bounds:**
+   - Token budgets must operate under monotonic clamps (`Math.max(0, Math.min(budget, remaining))`).
+   - Non-linear session tree mutation operations must run in cloned immutability envelopes or atomic rollback wrappers.
