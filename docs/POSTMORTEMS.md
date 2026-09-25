@@ -379,9 +379,17 @@ Line 69, Col 1: Declaration or statement expected.
 - **Root Cause Analysis:** Automated generation truncated mid-file produces trailing syntax errors such as `Line 165, Col 1: Declaration or statement expected`.
 - **Mandate:** DARLEK CAAN synthesizers must execute end-to-end file completion verification. Every exported module must feature closed class bodies, closed exported namespaces, and complete EOF markers.
 
+### 🛡️ Directive 6: Autonomous Mutation Cycle Defensive Sandbox Isolation (G-36 Addition)
+- **Root Cause Analysis:** Dynamic runtime execution of untrusted engine mutation patches directly affects live memory tables and active virtual file system handles, causing cascades across concurrent worker threads.
+- **Mandate:** All mutation iterations must compile in a sandboxed AST verification stage (`isolatedModules: true`, zero emit on diagnostics failure) prior to dynamic loading or runtime registration. Unchecked source strings must never enter the evaluation pipeline.
+
+### 🛡️ Directive 7: Deterministic Memory Clamping for High-Volume Stream Buffers (G-36 Addition)
+- **Root Cause Analysis:** Claude SEO streaming chunks under token exhaustion or high burst frequencies trigger unmetered backpressure buffer accumulation, leading to memory pressure and lost frame events.
+- **Mandate:** Implement bounded circular streaming buffers (`maxBufferChunks: 1024`, ring buffer overflow drop-oldest strategy with explicit telemetry notification) across all stream adapter implementations.
+
 ---
 
-## DARLEK CAAN Synthesis & Compiler Verification Protocols (G-29 Invariants)
+## DARLEK CAAN Synthesis & Compiler Verification Protocols (G-29 & G-36 Invariants)
 
 ### 📋 Invariant Audit Checklist
 1. **Regular Expression Safety:**
@@ -400,3 +408,11 @@ Line 69, Col 1: Declaration or statement expected.
 4. **Session Tree & Token Budget Bounds:**
    - Token budgets must operate under monotonic clamps (`Math.max(0, Math.min(budget, remaining))`).
    - Non-linear session tree mutation operations must run in cloned immutability envelopes or atomic rollback wrappers.
+
+5. **Sandbox File System Isolation Invariants (G-36 Extended):**
+   - Relative traversal components (`..`) must be evaluated against the virtual mount root using normalized path comparisons (`path.normalize`). Disallow paths escaping above `/virtual`.
+   - In-memory node deletion must recursively prune orphaned node references from directory indices to prevent zombie metadata leaks.
+
+6. **ReAct Loop Execution Safeguards (G-36 Extended):**
+   - ReAct loops must enforce a hard iteration maximum (`maxSteps: 30`) and execution timeout (`timeoutMs: 60000`).
+   - Loop steps must record idempotent breadcrumbs enabling exact session replay during root-cause post-mortem generation.
