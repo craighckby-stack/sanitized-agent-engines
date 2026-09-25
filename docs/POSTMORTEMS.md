@@ -285,3 +285,13 @@ Line 162, Col 35: Unexpected keyword or identifier.
 Line 165, Col 1: Declaration or statement expected.
 ```
 **CONSTRAINT (Model Generalization):** Never repeat code patterns that produce this compiler/linter error on engines/claude-seo/04-claude-seo-tool-sandbox-virtual-file-system-engine.ts.
+
+### ❌ [2026-09-25] engines/claude-seo/05-claude-seo-non-linear-session-tree-token-budget-engine.ts `source: mutation-cycle`
+**Symptom:** AST / TypeScript Compiler Validation Rejected
+**EVIDENCE (Machine-Copied Fact):**
+```
+Line 139, Col 20: '{' expected.
+Line 139, Col 42: ';' expected.
+Line 139, Col 50: Unexpected keyword or identifier.
+```
+**CONSTRAINT (Model Generalization):** Never repeat code patterns that produce this compiler/linter error on engines/claude-seo/05-claude-seo-non-linear-session-tree-token-budget-engine.ts.
