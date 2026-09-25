@@ -1,0 +1,19 @@
+{
+  "name": "@engine-harvester/scientific-agent-skills",
+  "version": "1.0.0",
+  "description": "Sanitized clean-room autonomous engine extracted from K-Dense-AI/scientific-agent-skills",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "start": "tsx runtime.ts"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "tsx": "^4.19.0"
+  }
+}
