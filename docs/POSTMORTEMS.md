@@ -498,3 +498,53 @@ Line 139, Col 12: ':' expected.
 Line 143, Col 6: ',' expected.
 ```
 **CONSTRAINT (Model Generalization):** Never repeat code patterns that produce this compiler/linter error on engines/cohere-toolkit/02-cohere-toolkit-react-loop-engine.ts.
+
+### ❌ [2026-09-25] engines/cohere-toolkit/03-cohere-toolkit-unified-model-stream-adapter.ts `source: mutation-cycle`
+**Symptom:** AST / TypeScript Compiler Validation Rejected
+**EVIDENCE (Machine-Copied Fact):**
+```
+Line 18, Col 20: '{' expected.
+Line 18, Col 41: ';' expected.
+Line 19, Col 23: ',' expected.
+Line 19, Col 34: ',' expected.
+Line 19, Col 67: ';' expected.
+Line 21, Col 3: Declaration or statement expected.
+Line 21, Col 40: ',' expected.
+Line 21, Col 46: An element access expression should take an argument.
+Line 21, Col 54: ',' expected.
+Line 21, Col 60: An element access expression should take an argument.
+Line 21, Col 62: ';' expected.
+Line 22, Col 9: ':' expected.
+Line 23, Col 13: ':' expected.
+Line 27, Col 9: ',' expected.
+Line 29, Col 11: Identifier expected.
+Line 29, Col 20: ',' expected.
+Line 29, Col 23: ',' expected.
+Line 29, Col 25: Property assignment expected.
+Line 35, Col 9: Unexpected keyword or identifier.
+Line 35, Col 52: ';' expected.
+Line 39, Col 11: Unexpected keyword or identifier.
+Line 41, Col 21: ';' expected.
+Line 43, Col 19: ';' expected.
+Line 44, Col 19: ';' expected.
+Line 45, Col 13: Expression expected.
+Line 45, Col 14: Declaration or statement expected.
+Line 48, Col 9: Unexpected keyword or identifier.
+Line 48, Col 45: ';' expected.
+Line 53, Col 9: Unexpected keyword or identifier.
+Line 53, Col 46: ';' expected.
+Line 55, Col 7: Unexpected keyword or identifier.
+Line 55, Col 43: ';' expected.
+Line 56, Col 7: 'try' expected.
+Line 58, Col 7: Unexpected keyword or identifier.
+Line 60, Col 21: ';' expected.
+Line 61, Col 7: Expression expected.
+Line 62, Col 7: Unexpected keyword or identifier.
+Line 64, Col 18: ';' expected.
+Line 65, Col 7: Expression expected.
+Line 66, Col 7: Unexpected keyword or identifier.
+Line 66, Col 43: ';' expected.
+Line 68, Col 3: Declaration or statement expected.
+Line 69, Col 1: Declaration or statement expected.
+```
+**CONSTRAINT (Model Generalization):** Never repeat code patterns that produce this compiler/linter error on engines/cohere-toolkit/03-cohere-toolkit-unified-model-stream-adapter.ts.
