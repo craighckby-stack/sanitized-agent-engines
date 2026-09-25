@@ -16,6 +16,8 @@ Every engine in this catalogue conforms to strict architectural defenses:
 8. **Rate Limiting & Resource Throttling**: Execution loops implement preemptive cycle quotas, token bucket governors, and recursion depth ceilings to prevent denial-of-service and cascading runaways.
 9. **Side-Channel & Information Leakage Mitigation**: Output synthesis layers enforce redactive token filters, timing-attack padding, and zero-trace log scrubbing for memory regions containing tenant credentials or state artifacts.
 10. **Hardware-Rooted Attestation & Secure Enclaves**: Optional deployment profiles support verifiable enclave execution (TEE/Nitro/SGX) with remote attestation of engine bytecode digests.
+11. **Formal Memory Safety & Allocation Ceilings**: Strict heap and stack allocators monitor execution boundaries to prevent out-of-memory cascading faults and memory corruption attacks.
+12. **Hermetic Supply-Chain Provenance**: All dependencies and sub-modules are pinned to exact cryptographic content identifiers (CIDs) with verifiable in-toto and SLSA Level 3 attestations.
 
 ## Extracted Engines
 
@@ -38,6 +40,8 @@ To guarantee architectural integrity before deployment:
 - **Adversarial Invariant Proving**: Execute clean-room invariant fuzzing against engine state machines to assert no unhandled transitions or context escape pathways exist.
 - **Cryptographic Hash Manifest Validation**: Compute SHA-384 checksums across all implementation modules prior to loading, matching against signed catalog digests.
 - **Boundary Sanitization Gate**: Run automated input/output taint tracking to verify untrusted text, code snippets, or prompt injections cannot alter internal control flow.
+- **Deterministic Checkpoint Hash Chains**: State checkpoints form an append-only hash chain; any out-of-order transition or modified historic frame invalidates execution flow immediately.
+- **Dynamic Resource Quota Enforcement**: Active runtime hooks assert wall-clock, cycle-count, and memory delta ceilings per execution tick.
 
 ## Threat Model & Defensive Mitigations
 
@@ -48,6 +52,9 @@ To guarantee architectural integrity before deployment:
 | State Poisoning & Memory Tampering | High | Shared State Stores / Cyclic Graphs | Copy-on-write immutable snapshots, deterministic Merkle state trees, cryptographically signed checkpoints |
 | Denial of Wallet / Token Exhaustion | High | Model Inference & Autonomous Loops | Hard runtime token budgets, recursion depth limits, monotonically decreasing execution allowances |
 | Data Exfiltration & Covert Channels | High | Network Adapters / External I/O | Air-gapped network namespaces, strict domain allowlists, egress payload inspection |
+| Supply Chain Dependency Hijacking | Critical | Package Registries & Submodules | Pinned cryptographic digests, SLSA Level 3 attestations, zero-trust clean-room imports |
+| Side-Channel & Timing Leaks | Medium | Output Synthesis & Token Streaming | Uniform packet sizing, jitter injection on token emission, zero-memory-reuse allocators |
+| Deserialization Code Execution | Critical | IPC Message Bus & Checkpoint Deserializers | Schema-constrained zero-copy deserializers, prototype pollution guards, typed buffer parsing |
 
 ## Architectural Deployment & Usage Pattern
 
@@ -117,6 +124,15 @@ try {
   await defensiveContext.dispose();
 }
 ```
+
+## Fail-Safe Emergency Termination & Recovery Mechanics
+
+In the event of an invariant breach, anomalous loop detection, or cryptographic validation failure:
+1. **Immediate Circuit Interruption**: The execution loop trips an uninterruptible circuit breaker (`context.emergencyHalt()`), instantly revoking all active capability leases.
+2. **Subprocess SIGKILL Cascade**: All child subprocesses and worker threads are terminated via non-catchable signals (`SIGKILL`) within a 50ms escalation window.
+3. **Volatile Memory Zeroing**: Ephemeral state buffers, scratchpads, and intermediate cache lines are overwritten with zeroes prior to memory deallocation.
+4. **Append-Only Tamper-Evident Post-Mortem Frame**: An attestation event is written to the audit sink containing the triggering exception, cycle counter, snapshot Merkle root, and monotonic clock timestamp.
+5. **Jail Tear-Down**: Ephemeral filesystem overlays and read-only bind mounts are unmounted and purged from the host storage controller.
 
 ## Security Disclosure & Integrity Reporting
 
