@@ -3,13 +3,28 @@ Automated clean-room runtime engine specifications and production code generated
 
 All vendor trademarks and proprietary branding have been scrubbed into isolated, composable runtime architecture.
 
+## Defensive Architecture & Isolation Protocol
+
+Every engine in this catalogue conforms to strict architectural defenses:
+1. **Zero Ambient Authority**: Engines run with bounded execution context; external I/O, subprocesses, and filesystem modifications require explicit capability leases.
+2. **Deterministic State Transitions**: State transitions are verifiable, observable, and snapshot-isolated to prevent state poisoning.
+3. **Execution Sandboxing**: Script and shell evaluators must implement CPU, memory, and timeout bounds with signal propagation guards.
+4. **Clean-Room Boundary**: Scrubbed API surfaces decouple domain algorithms from proprietary cloud endpoints, permitting pluggable local and air-gapped adapters.
+
 ## Extracted Engines
 
 | Engine Name | Implementation | Source Origin | Status | Indexed Date |
 | :--- | :--- | :--- | :--- | :--- |
 | [open-interpreter](./engines/open-interpreter/specification.md) | [runtime.ts](./engines/open-interpreter/runtime.ts) | `KillianLucas/open-interpreter` | Clean-Room Sanitized | 2026-09-24 |
-
 | [langgraph](./engines/langgraph/specification.md) | [runtime.ts](./engines/langgraph/runtime.ts) | `langchain-ai/langgraph` | Clean-Room Sanitized | 2026-09-24 |
 | [deepseek-harness](./engines/deepseek-harness/specification.md) | [runtime.ts](./engines/deepseek-harness/runtime.ts) | `deepseek-ai/deepseek-harness` | Clean-Room Sanitized | 2026-09-24 |
 | [AutoGPT](./engines/autogpt/specification.md) | [runtime.ts](./engines/autogpt/runtime.ts) | `Significant-Gravitas/AutoGPT` | Clean-Room Sanitized | 2026-09-24 |
 | [aider](./engines/aider/specification.md) | [runtime.ts](./engines/aider/runtime.ts) | `Aider-AI/aider` | Clean-Room Sanitized | 2026-09-24 |
+
+## Defensive Validation & Runtime Verification
+
+To guarantee architectural integrity before deployment:
+- **Specification Conformance**: Verify that each `specification.md` strictly adheres to clean-room behavioral contracts.
+- **Static Type Safety**: Validate all `runtime.ts` modules with strict type checking enabled (`noImplicitAny`, `strictNullChecks`).
+- **Telemetry & Audit Logging**: All agent actions emit structured, tamper-evident audit frames before and after critical operations.
+- **Fail-Safe Recovery**: Any unhandled exception or unverified token invocation must trip the runtime circuit breaker into a controlled halt without leaking environmental state.
