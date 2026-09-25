@@ -1,7 +1,7 @@
-# AutoGPT Core Engine
+# AutoGPT
 
-> Clean-room architectural extraction of the runtime engine powering [Significant-Gravitas/AutoGPT](https://github.com/Significant-Gravitas/AutoGPT).
-> **License**: MIT License
+> Clean-room architectural extraction of the runtime engine powering [Significant-Gravitas/AutoGPT](Significant-Gravitas/AutoGPT).
+> **License**: MIT (MIT License)
 
 ## Quickstart
 
@@ -18,4 +18,4 @@ npm run build
 
 ## Architecture & Components
 
-For comprehensive architectural blueprints, dataflow diagrams, and implementation details, see [`specification.md`](./specification.md).
+See [`specification.md`](./specification.md) for full architectural blueprints, dataflow diagrams, and implementation details.
