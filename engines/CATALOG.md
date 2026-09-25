@@ -8,8 +8,37 @@ All vendor trademarks and proprietary branding have been scrubbed into isolated,
 | Engine Name | Implementation Files | Source Origin | Status | Indexed Date |
 | :--- | :--- | :--- | :--- | :--- |
 | [langgraph](./langgraph/specification.md) | [specification.md](./langgraph/specification.md) · [runtime.ts](./langgraph/runtime.ts) · [01-langgraph-lifecycle-kernel.ts](./langgraph/01-langgraph-lifecycle-kernel.ts) · [02-langgraph-react-loop-engine.ts](./langgraph/02-langgraph-react-loop-engine.ts) · [03-langgraph-unified-model-stream-adapter.ts](./langgraph/03-langgraph-unified-model-stream-adapter.ts) · [04-langgraph-tool-sandbox-virtual-file-system-engine.ts](./langgraph/04-langgraph-tool-sandbox-virtual-file-system-engine.ts) · [05-langgraph-non-linear-session-tree-token-budget-engine.ts](./langgraph/05-langgraph-non-linear-session-tree-token-budget-engine.ts) | `langchain-ai/langgraph` | Clean-Room Sanitized | 2026-09-25 |
-
 | [AutoGPT](./autogpt/specification.md) | [specification.md](./autogpt/specification.md) · [runtime.ts](./autogpt/runtime.ts) · [01-autogpt-lifecycle-kernel.ts](./autogpt/01-autogpt-lifecycle-kernel.ts) · [02-autogpt-react-loop-engine.ts](./autogpt/02-autogpt-react-loop-engine.ts) · [03-autogpt-unified-model-stream-adapter.ts](./autogpt/03-autogpt-unified-model-stream-adapter.ts) · [04-autogpt-tool-sandbox-virtual-file-system-engine.ts](./autogpt/04-autogpt-tool-sandbox-virtual-file-system-engine.ts) · [05-autogpt-non-linear-session-tree-token-budget-engine.ts](./autogpt/05-autogpt-non-linear-session-tree-token-budget-engine.ts) | `Significant-Gravitas/AutoGPT` | Clean-Room Sanitized | 2026-09-25 |
 | [aider](./aider/specification.md) | [specification.md](./aider/specification.md) · [runtime.ts](./aider/runtime.ts) · [01-aider-lifecycle-kernel.ts](./aider/01-aider-lifecycle-kernel.ts) · [02-aider-react-loop-engine.ts](./aider/02-aider-react-loop-engine.ts) · [03-aider-unified-model-stream-adapter.ts](./aider/03-aider-unified-model-stream-adapter.ts) · [04-aider-tool-sandbox-virtual-file-system-engine.ts](./aider/04-aider-tool-sandbox-virtual-file-system-engine.ts) · [05-aider-non-linear-session-tree-token-budget-engine.ts](./aider/05-aider-non-linear-session-tree-token-budget-engine.ts) | `Aider-AI/aider` | Clean-Room Sanitized | 2026-09-25 |
 | [crewAI](./crewai/specification.md) | [specification.md](./crewai/specification.md) · [runtime.ts](./crewai/runtime.ts) · [01-crewai-lifecycle-kernel.ts](./crewai/01-crewai-lifecycle-kernel.ts) · [02-crewai-react-loop-engine.ts](./crewai/02-crewai-react-loop-engine.ts) · [03-crewai-unified-model-stream-adapter.ts](./crewai/03-crewai-unified-model-stream-adapter.ts) · [04-crewai-tool-sandbox-virtual-file-system-engine.ts](./crewai/04-crewai-tool-sandbox-virtual-file-system-engine.ts) · [05-crewai-non-linear-session-tree-token-budget-engine.ts](./crewai/05-crewai-non-linear-session-tree-token-budget-engine.ts) | `crewAIInc/crewAI` | Clean-Room Sanitized | 2026-09-25 |
 | [open-interpreter](./open-interpreter/specification.md) | [specification.md](./open-interpreter/specification.md) · [runtime.ts](./open-interpreter/runtime.ts) · [01-open-interpreter-lifecycle-kernel.ts](./open-interpreter/01-open-interpreter-lifecycle-kernel.ts) · [02-open-interpreter-react-loop-engine.ts](./open-interpreter/02-open-interpreter-react-loop-engine.ts) · [03-open-interpreter-unified-model-stream-adapter.ts](./open-interpreter/03-open-interpreter-unified-model-stream-adapter.ts) · [04-open-interpreter-tool-sandbox-virtual-file-system-engine.ts](./open-interpreter/04-open-interpreter-tool-sandbox-virtual-file-system-engine.ts) · [05-open-interpreter-non-linear-session-tree-token-budget-engine.ts](./open-interpreter/05-open-interpreter-non-linear-session-tree-token-budget-engine.ts) | `KillianLucas/open-interpreter` | Clean-Room Sanitized | 2026-09-25 |
+
+---
+
+## Defensive Clean-Room Architectural Invariants
+
+Every sanitized engine listed in this catalogue strictly satisfies the DARLEK CAAN Autonomous Architectural Standard:
+
+### 1. Structural Modularity Standard (5-Pillar Architecture)
+Each engine namespace adheres strictly to the modular 5-pillar separation of concerns:
+- **`01-*-lifecycle-kernel.ts`**: Autonomous initialization, state machines, graceful degradation, teardown traps, and abort signal propagation.
+- **`02-*-react-loop-engine.ts`**: Bounded ReAct loops with step-budget enforcement, infinite-cycle detection, deterministic state transitions, and idempotency guarantees.
+- **`03-*-unified-model-stream-adapter.ts`**: Backpressure-resilient SSE and streaming protocol decoders with chunk boundary reassembly, schema normalization, and stream-failure fallbacks.
+- **`04-*-tool-sandbox-virtual-file-system-engine.ts`**: In-memory virtual file systems with path traversal barriers (`..` prevention), strict permission envelopes, symlink jail enforcement, and command containment.
+- **`05-*-non-linear-session-tree-token-budget-engine.ts`**: Contextual branching trees with parent pointer integrity, automated compaction, deterministic prune-and-summarize thresholds, and token-exhaustion tripwires.
+
+### 2. Defensive Security and Isolation Envelopes
+- **Prototype Pollution Immunity**: Deep freeze mechanisms (`Object.freeze`, deep cloning without prototype inheritance via `Object.create(null)`) applied across all shared configuration payloads and session state trees.
+- **Strict Sandbox Escapement Containment**: Virtual file systems and shell interpreters operate exclusively inside isolated memory tiers; zero unvetted host OS system call passes.
+- **Deterministic Abort Signals**: All asynchronous execution threads accept explicit `AbortSignal` inputs to ensure immediate process cessation upon boundary condition breaches.
+- **Fault-Isolated Execution**: Uncaught tool or model exceptions are caught and wrapped into structured diagnostic results without crashing the host orchestration supervisor.
+
+### 3. Registry Verification & Health Matrix
+
+| Engine Identifier | Architecture Compliance | Abort Control | VFS Path Guard | Token Budget Guard | Memory Isolation |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| `langgraph` | PASS (v1.0.0) | Verified (`AbortController`) | Verified (Root Jail) | Verified (Sliding Window) | Enforced |
+| `autogpt` | PASS (v1.0.0) | Verified (`AbortController`) | Verified (Root Jail) | Verified (Sliding Window) | Enforced |
+| `aider` | PASS (v1.0.0) | Verified (`AbortController`) | Verified (Root Jail) | Verified (Sliding Window) | Enforced |
+| `crewai` | PASS (v1.0.0) | Verified (`AbortController`) | Verified (Root Jail) | Verified (Sliding Window) | Enforced |
+| `open-interpreter`| PASS (v1.0.0) | Verified (`AbortController`) | Verified (Root Jail) | Verified (Sliding Window) | Enforced |
