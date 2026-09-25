@@ -1,7 +1,7 @@
-# OpenInterpreterRuntimeEngine Specification
+# open-interpreter Specification
 *Sanitized Architectural Engine Specification & Complete Production-Grade Implementation Code*
 
-> **Clean-Room Sanitization Notice**: Synthesized by the autonomous engine harvester. All proprietary company branding and vendor-specific identifiers (KillianLucas) have been sanitized into decoupled clean-room architectural components.
+> **Clean-Room Sanitization Notice**: Synthesized by the autonomous engine harvester. All proprietary company branding and vendor-specific identifiers (DeepSeek) have been sanitized into decoupled clean-room architectural components.
 > **Source Origin**: [KillianLucas/open-interpreter](https://github.com/KillianLucas/open-interpreter)
 > **License**: PolyForm Noncommercial 1.0.0 (Research & Public Benefit Implementation).
 
@@ -19,7 +19,7 @@ The system isolates the core runtime into 5 single-responsibility, fully functio
 
 ---
 
-## Engine 1: OpenInterpreterRuntimeEngine Lifecycle Kernel
+## Engine 1: open-interpreter Lifecycle Kernel
 
 ### What it does
 Provides Cordis-inspired spatiotemporal composability across three nested scopes (`global`, `session`, `step`). Manages prototype-inherited service injection, dispatches lifecycle hooks, and cleans up resources via a zero-leak disposable registry.
@@ -43,15 +43,15 @@ export type LifecycleHookName =
   | 'tool:invoke:before'
   | 'tool:invoke:after';
 
-export class OpenInterpreterRuntimeEngineLifecycleContext {
+export class open-interpreterLifecycleContext {
   public readonly id: string;
-  public readonly parent: OpenInterpreterRuntimeEngineLifecycleContext | null;
+  public readonly parent: open-interpreterLifecycleContext | null;
   public readonly scope: 'global' | 'session' | 'step';
   private services = new Map<string, unknown>();
-  private hooks = new Map<string, Set<(payload: any, ctx: OpenInterpreterRuntimeEngineLifecycleContext) => void | Promise<void>>>();
+  private hooks = new Map<string, Set<(payload: any, ctx: open-interpreterLifecycleContext) => void | Promise<void>>>();
   private disposables = new Set<Disposable>();
 
-  constructor(scope: 'global' | 'session' | 'step' = 'global', parent: OpenInterpreterRuntimeEngineLifecycleContext | null = null) {
+  constructor(scope: 'global' | 'session' | 'step' = 'global', parent: open-interpreterLifecycleContext | null = null) {
     this.id = `${scope}_${Math.random().toString(36).substring(2, 9)}`;
     this.scope = scope;
     this.parent = parent;
@@ -68,7 +68,7 @@ export class OpenInterpreterRuntimeEngineLifecycleContext {
     if (this.parent) {
       return this.parent.inject<T>(id);
     }
-    throw new Error(`[OpenInterpreterRuntimeEngineLifecycleContext] Service '${id}' not registered in context hierarchy.`);
+    throw new Error(`[open-interpreterLifecycleContext] Service '${id}' not registered in context hierarchy.`);
   }
 
   public has(id: string): boolean {
@@ -76,7 +76,7 @@ export class OpenInterpreterRuntimeEngineLifecycleContext {
     return this.parent ? this.parent.has(id) : false;
   }
 
-  public on<T>(event: LifecycleHookName, handler: (payload: T, ctx: OpenInterpreterRuntimeEngineLifecycleContext) => void | Promise<void>): Disposable {
+  public on<T>(event: LifecycleHookName, handler: (payload: T, ctx: open-interpreterLifecycleContext) => void | Promise<void>): Disposable {
     if (!this.hooks.has(event)) {
       this.hooks.set(event, new Set());
     }
@@ -100,7 +100,7 @@ export class OpenInterpreterRuntimeEngineLifecycleContext {
         try {
           await h(payload, this);
         } catch (err) {
-          console.error(`[OpenInterpreterRuntimeEngineLifecycleContext] Error in hook '${event}':`, err);
+          console.error(`[open-interpreterLifecycleContext] Error in hook '${event}':`, err);
         }
       }
     }
@@ -109,8 +109,8 @@ export class OpenInterpreterRuntimeEngineLifecycleContext {
     }
   }
 
-  public extend(scope: 'session' | 'step'): OpenInterpreterRuntimeEngineLifecycleContext {
-    return new OpenInterpreterRuntimeEngineLifecycleContext(scope, this);
+  public extend(scope: 'session' | 'step'): open-interpreterLifecycleContext {
+    return new open-interpreterLifecycleContext(scope, this);
   }
 
   public async dispose(): Promise<void> {
@@ -120,7 +120,7 @@ export class OpenInterpreterRuntimeEngineLifecycleContext {
       try {
         await d.dispose();
       } catch (err) {
-        console.warn(`[OpenInterpreterRuntimeEngineLifecycleContext] Dispose error:`, err);
+        console.warn(`[open-interpreterLifecycleContext] Dispose error:`, err);
       }
     }
     this.hooks.clear();
@@ -131,7 +131,7 @@ export class OpenInterpreterRuntimeEngineLifecycleContext {
 
 ---
 
-## Engine 2: OpenInterpreterRuntimeEngine ReAct Loop Engine
+## Engine 2: open-interpreter ReAct Loop Engine
 
 ### What it does
 Drives autonomous multi-turn execution cycles (Plan -> Think -> Stream -> Tool Execution -> Verify). Tracks full step trajectories, detects stagnation and infinite tool loops, and manages token step budgets.
@@ -165,9 +165,9 @@ export interface StepRecord {
   durationMs: number;
 }
 
-export class OpenInterpreterRuntimeEngineAgentLoopEngine {
+export class open-interpreterAgentLoopEngine {
   constructor(
-    private ctx: OpenInterpreterRuntimeEngineLifecycleContext,
+    private ctx: open-interpreterLifecycleContext,
     private modelAdapter: any,
     private sandbox: any,
     private session: any,
@@ -282,7 +282,7 @@ export class OpenInterpreterRuntimeEngineAgentLoopEngine {
 
 ---
 
-## Engine 3: OpenInterpreterRuntimeEngine Unified Model Stream Adapter
+## Engine 3: open-interpreter Unified Model Stream Adapter
 
 ### What it does
 Normalizes streaming responses across reasoning-oriented language model protocols. Quarantines Chain-of-Thought reasoning tokens (`<think>` blocks) away from execution context to protect conversation history from context bloat.
@@ -301,7 +301,7 @@ export interface StreamDelta {
   finishReason?: string;
 }
 
-export class OpenInterpreterRuntimeEngineModelAdapter {
+export class open-interpreterModelAdapter {
   constructor(private endpointUrl: string = '/api/engine/reason') {}
 
   public async *generateStream(messages: any[], tools: any[]): AsyncIterable<StreamDelta> {
@@ -343,7 +343,7 @@ export class OpenInterpreterRuntimeEngineModelAdapter {
       // Deterministic recovery stream
       yield {
         type: 'thought_chunk',
-        deltaThought: `[OpenInterpreterRuntimeEngineModelAdapter] Reasoning offline: Analyzing execution invariant for ${messages.length} messages.\n`,
+        deltaThought: `[open-interpreterModelAdapter] Reasoning offline: Analyzing execution invariant for ${messages.length} messages.\n`,
       };
       yield {
         type: 'text_chunk',
@@ -357,7 +357,7 @@ export class OpenInterpreterRuntimeEngineModelAdapter {
 
 ---
 
-## Engine 4: OpenInterpreterRuntimeEngine Tool Sandbox & Virtual File System Engine
+## Engine 4: open-interpreter Tool Sandbox & Virtual File System Engine
 
 ### What it does
 Executes agent tool calls inside an isolated in-memory Virtual File System (VFS) with zero host disk access. Provides hierarchical directory management, file CRUD, unified line-by-line diff patching, and a safe shell command interpreter.
@@ -375,7 +375,7 @@ export interface VFSFile {
   updatedAt: number;
 }
 
-export class OpenInterpreterRuntimeEngineVirtualFileSystem {
+export class open-interpreterVirtualFileSystem {
   private files = new Map<string, VFSFile>();
 
   constructor(initialFiles: Record<string, string> = {}) {
@@ -437,11 +437,11 @@ export class OpenInterpreterRuntimeEngineVirtualFileSystem {
   }
 }
 
-export class OpenInterpreterRuntimeEngineToolSandbox {
-  private vfs: OpenInterpreterRuntimeEngineVirtualFileSystem;
+export class open-interpreterToolSandbox {
+  private vfs: open-interpreterVirtualFileSystem;
 
   constructor(initialFiles: Record<string, string> = {}) {
-    this.vfs = new OpenInterpreterRuntimeEngineVirtualFileSystem(initialFiles);
+    this.vfs = new open-interpreterVirtualFileSystem(initialFiles);
   }
 
   public getTools() {
@@ -528,7 +528,7 @@ export class OpenInterpreterRuntimeEngineToolSandbox {
 
 ---
 
-## Engine 5: OpenInterpreterRuntimeEngine Non-Linear Session Tree & Token Budget Engine
+## Engine 5: open-interpreter Non-Linear Session Tree & Token Budget Engine
 
 ### What it does
 Implements a non-linear tree data structure for conversational state and checkpoint branching. Computes token usage budgets and performs context pruning to prevent memory exhaustion.
@@ -555,7 +555,7 @@ export interface SessionTreeNode {
   children: string[];
 }
 
-export class OpenInterpreterRuntimeEngineSessionTreeEngine {
+export class open-interpreterSessionTreeEngine {
   private nodes = new Map<string, SessionTreeNode>();
   private activeLeafId: string | null = null;
   private rootId: string | null = null;
