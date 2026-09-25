@@ -354,3 +354,99 @@ Line 68, Col 3: Declaration or statement expected.
 Line 69, Col 1: Declaration or statement expected.
 ```
 **CONSTRAINT (Model Generalization):** Never repeat code patterns that produce this compiler/linter error on engines/claude-seo/03-claude-seo-unified-model-stream-adapter.ts.
+
+### ❌ [2026-09-25] engines/claude-seo/04-claude-seo-tool-sandbox-virtual-file-system-engine.ts `source: mutation-cycle`
+**Symptom:** AST / TypeScript Compiler Validation Rejected
+**EVIDENCE (Machine-Copied Fact):**
+```
+Line 17, Col 20: '{' expected.
+Line 17, Col 42: ';' expected.
+Line 18, Col 3: Declaration or statement expected.
+Line 20, Col 27: ',' expected.
+Line 20, Col 58: ';' expected.
+Line 26, Col 3: Declaration or statement expected.
+Line 26, Col 28: ',' expected.
+Line 26, Col 37: ';' expected.
+Line 26, Col 39: Unexpected keyword or identifier.
+Line 27, Col 38: Unterminated regular expression literal.
+Line 27, Col 72: ')' expected.
+Line 30, Col 3: Declaration or statement expected.
+Line 30, Col 24: ',' expected.
+Line 30, Col 41: ',' expected.
+Line 30, Col 50: ';' expected.
+Line 31, Col 11: ':' expected.
+Line 31, Col 48: ',' expected.
+Line 32, Col 9: ':' expected.
+Line 37, Col 7: ',' expected.
+Line 40, Col 3: Declaration or statement expected.
+Line 40, Col 23: ',' expected.
+Line 40, Col 32: ';' expected.
+Line 40, Col 34: Unexpected keyword or identifier.
+Line 49, Col 3: Declaration or statement expected.
+Line 49, Col 21: ',' expected.
+Line 49, Col 30: ';' expected.
+Line 49, Col 32: Unexpected keyword or identifier.
+Line 53, Col 3: Declaration or statement expected.
+Line 53, Col 25: ',' expected.
+Line 53, Col 34: ';' expected.
+Line 53, Col 36: Unexpected keyword or identifier.
+Line 57, Col 3: Declaration or statement expected.
+Line 57, Col 36: ';' expected.
+Line 57, Col 45: An element access expression should take an argument.
+Line 57, Col 47: ';' expected.
+Line 68, Col 3: Declaration or statement expected.
+Line 68, Col 29: ',' expected.
+Line 68, Col 54: ',' expected.
+Line 68, Col 82: ',' expected.
+Line 68, Col 91: ';' expected.
+Line 68, Col 93: Unexpected keyword or identifier.
+Line 79, Col 20: '{' expected.
+Line 79, Col 36: ';' expected.
+Line 80, Col 3: Declaration or statement expected.
+Line 82, Col 27: ',' expected.
+Line 82, Col 58: ';' expected.
+Line 86, Col 3: Declaration or statement expected.
+Line 86, Col 21: ';' expected.
+Line 96, Col 3: Declaration or statement expected.
+Line 96, Col 10: Unexpected keyword or identifier.
+Line 96, Col 34: ',' expected.
+Line 96, Col 48: ',' expected.
+Line 96, Col 62: ',' expected.
+Line 96, Col 84: ';' expected.
+Line 97, Col 11: ':' expected.
+Line 97, Col 29: ',' expected.
+Line 98, Col 9: ',' expected.
+Line 98, Col 20: ',' expected.
+Line 99, Col 9: ',' expected.
+Line 99, Col 24: ',' expected.
+Line 101, Col 9: ':' expected.
+Line 102, Col 16: ',' expected.
+Line 102, Col 31: ',' expected.
+Line 102, Col 33: Property assignment expected.
+Line 104, Col 9: Declaration or statement expected.
+Line 118, Col 7: 'try' expected.
+Line 130, Col 3: Declaration or statement expected.
+Line 132, Col 3: Declaration or statement expected.
+Line 132, Col 11: Unexpected keyword or identifier.
+Line 132, Col 33: ',' expected.
+Line 132, Col 42: ';' expected.
+Line 133, Col 11: ':' expected.
+Line 133, Col 31: ',' expected.
+Line 134, Col 9: Identifier expected.
+Line 134, Col 19: '{' expected.
+Line 134, Col 26: ':' expected.
+Line 134, Col 28: ',' expected.
+Line 136, Col 11: ':' expected.
+Line 136, Col 39: ',' expected.
+Line 137, Col 11: ':' expected.
+Line 137, Col 29: ',' expected.
+Line 139, Col 17: ',' expected.
+Line 139, Col 27: ';' expected.
+Line 160, Col 3: Declaration or statement expected.
+Line 162, Col 3: Declaration or statement expected.
+Line 162, Col 24: ',' expected.
+Line 162, Col 33: ';' expected.
+Line 162, Col 35: Unexpected keyword or identifier.
+Line 165, Col 1: Declaration or statement expected.
+```
+**CONSTRAINT (Model Generalization):** Never repeat code patterns that produce this compiler/linter error on engines/claude-seo/04-claude-seo-tool-sandbox-virtual-file-system-engine.ts.
