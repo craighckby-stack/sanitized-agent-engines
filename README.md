@@ -18,6 +18,10 @@ Every engine in this catalogue conforms to strict architectural defenses:
 10. **Hardware-Rooted Attestation & Secure Enclaves**: Optional deployment profiles support verifiable enclave execution (TEE/Nitro/SGX) with remote attestation of engine bytecode digests.
 11. **Formal Memory Safety & Allocation Ceilings**: Strict heap and stack allocators monitor execution boundaries to prevent out-of-memory cascading faults and memory corruption attacks.
 12. **Hermetic Supply-Chain Provenance**: All dependencies and sub-modules are pinned to exact cryptographic content identifiers (CIDs) with verifiable in-toto and SLSA Level 3 attestations.
+13. **Cryptographic Nonce & Anti-Replay Guardrails**: Every state transition and inter-engine IPC transmission includes a monotonic sequence counter and cryptographically signed replay-resistant nonce.
+14. **Multi-Party Capability Lease Signatures**: Elevated capability leases (such as write-enabled disk access or ephemeral network egress) require split-knowledge cryptographic authorization tokens.
+15. **Kernel-Enforced Seccomp and Landlock Confinement**: Shell and tool execution contexts inherit unbypassable kernel Landlock rulesets and strict BPF filters restricting unauthorized syscall invocations.
+16. **Continuous Invariant Fuzzing & Static Taint Propagation**: Pre-deployment verification runs continuous mutation-based boundary fuzzing and static taint propagation analysis to guarantee zero context escape surfaces.
 
 ## Extracted Engines
 
@@ -42,6 +46,8 @@ To guarantee architectural integrity before deployment:
 - **Boundary Sanitization Gate**: Run automated input/output taint tracking to verify untrusted text, code snippets, or prompt injections cannot alter internal control flow.
 - **Deterministic Checkpoint Hash Chains**: State checkpoints form an append-only hash chain; any out-of-order transition or modified historic frame invalidates execution flow immediately.
 - **Dynamic Resource Quota Enforcement**: Active runtime hooks assert wall-clock, cycle-count, and memory delta ceilings per execution tick.
+- **Zero-Copy Serialization Verification**: Engine communication payloads undergo rigorous boundary checks ensuring no prototype injection or cyclic reference attacks can destabilize host serialization.
+- **Automated Revocation Heartbeat**: Real-time heartbeat probes continuously validate runtime authorization status; expired or compromised leases are purged within less than 10 milliseconds.
 
 ## Threat Model & Defensive Mitigations
 
@@ -55,6 +61,10 @@ To guarantee architectural integrity before deployment:
 | Supply Chain Dependency Hijacking | Critical | Package Registries & Submodules | Pinned cryptographic digests, SLSA Level 3 attestations, zero-trust clean-room imports |
 | Side-Channel & Timing Leaks | Medium | Output Synthesis & Token Streaming | Uniform packet sizing, jitter injection on token emission, zero-memory-reuse allocators |
 | Deserialization Code Execution | Critical | IPC Message Bus & Checkpoint Deserializers | Schema-constrained zero-copy deserializers, prototype pollution guards, typed buffer parsing |
+| SSRF & Intranet Network Pivot | Critical | Ephemeral Web Retrieval Tools | Zero network egress by default, strict loopback/RFC-1918 blocklists, DNS rebinding mitigations |
+| Replay & State Desynchronization | High | Multi-Step Agent Checkpoints | Monotonic transaction counters, non-repeatable cryptographic nonces, Merkle epoch verification |
+| Prototype Pollution & Object Tampering | High | JSON Ingestion & Object Merging | `Object.freeze()` enforcement, `Object.create(null)` dictionaries, recursive schema clamping |
+| Memory Exhaustion & Cascading OOM | Critical | Unbounded Model Buffering & Caching | Hard sliding-window token allocators, proactive GC triggers, per-tick memory delta governors |
 
 ## Architectural Deployment & Usage Pattern
 
@@ -133,6 +143,8 @@ In the event of an invariant breach, anomalous loop detection, or cryptographic 
 3. **Volatile Memory Zeroing**: Ephemeral state buffers, scratchpads, and intermediate cache lines are overwritten with zeroes prior to memory deallocation.
 4. **Append-Only Tamper-Evident Post-Mortem Frame**: An attestation event is written to the audit sink containing the triggering exception, cycle counter, snapshot Merkle root, and monotonic clock timestamp.
 5. **Jail Tear-Down**: Ephemeral filesystem overlays and read-only bind mounts are unmounted and purged from the host storage controller.
+6. **Capability Revocation Broadcast**: A cryptographic invalidation broadcast is sent across all shared IPC buses to prevent stale or orphaned worker re-attachment.
+7. **Entropy Sanitization & Kernel Handle Flush**: File descriptors, network socket references, and cryptographic key material in memory are strictly flushed, unmapped, and marked non-reusable.
 
 ## Security Disclosure & Integrity Reporting
 
