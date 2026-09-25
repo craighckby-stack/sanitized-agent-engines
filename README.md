@@ -13,6 +13,9 @@ Every engine in this catalogue conforms to strict architectural defenses:
 5. **Cryptographic Attestation & Integrity Verification**: Runtime modules, dependency trees, and contract schemas are validated against cryptographic hash manifests prior to initialization.
 6. **Defense-in-Depth Surface Hardening**: Input vectors, agent-generated commands, and inter-agent message buses enforce strict schema validation, input sanitization, and output boundary filtering.
 7. **Ephemeral Execution & State Scrubbing**: Runtime contexts are ephemeral by default; all scratchspaces, process trees, and temporary capability tokens are reliably eradicated on session termination.
+8. **Rate Limiting & Resource Throttling**: Execution loops implement preemptive cycle quotas, token bucket governors, and recursion depth ceilings to prevent denial-of-service and cascading runaways.
+9. **Side-Channel & Information Leakage Mitigation**: Output synthesis layers enforce redactive token filters, timing-attack padding, and zero-trace log scrubbing for memory regions containing tenant credentials or state artifacts.
+10. **Hardware-Rooted Attestation & Secure Enclaves**: Optional deployment profiles support verifiable enclave execution (TEE/Nitro/SGX) with remote attestation of engine bytecode digests.
 
 ## Extracted Engines
 
@@ -33,6 +36,18 @@ To guarantee architectural integrity before deployment:
 - **Fail-Safe Recovery**: Any unhandled exception or unverified token invocation must trip the runtime circuit breaker into a controlled halt without leaking environmental state.
 - **Capability Lease Audit**: Verify runtime token leases satisfy time-to-live (TTL) bounds and revocation listeners before issuing high-privilege primitives.
 - **Adversarial Invariant Proving**: Execute clean-room invariant fuzzing against engine state machines to assert no unhandled transitions or context escape pathways exist.
+- **Cryptographic Hash Manifest Validation**: Compute SHA-384 checksums across all implementation modules prior to loading, matching against signed catalog digests.
+- **Boundary Sanitization Gate**: Run automated input/output taint tracking to verify untrusted text, code snippets, or prompt injections cannot alter internal control flow.
+
+## Threat Model & Defensive Mitigations
+
+| Threat Vector | Severity | Attack Surface | Mitigation Strategy |
+| :--- | :--- | :--- | :--- |
+| Prompt & Instruction Injection | Critical | Model Input / Execution Context | Structured JSON schema boundaries, AST-level command validation, parameter tokenization |
+| Host Jailbreak & Process Escape | Critical | Subprocess Execution / Shell Tooling | Linux cgroups v2, seccomp-bpf system call filters, chroot/overlayfs read-only workspaces |
+| State Poisoning & Memory Tampering | High | Shared State Stores / Cyclic Graphs | Copy-on-write immutable snapshots, deterministic Merkle state trees, cryptographically signed checkpoints |
+| Denial of Wallet / Token Exhaustion | High | Model Inference & Autonomous Loops | Hard runtime token budgets, recursion depth limits, monotonically decreasing execution allowances |
+| Data Exfiltration & Covert Channels | High | Network Adapters / External I/O | Air-gapped network namespaces, strict domain allowlists, egress payload inspection |
 
 ## Architectural Deployment & Usage Pattern
 
@@ -57,6 +72,49 @@ try {
   await context.emergencyHalt(fault);
 } finally {
   await context.dispose();
+}
+```
+
+## Advanced Defensive Pipeline Example
+
+```typescript
+import { createEngineContext, LeaseScope } from "./engines/common/context";
+import { verifyModuleIntegrity } from "./engines/common/crypto";
+
+// Pre-flight cryptographic attestation
+const isIntegrityVerified = await verifyModuleIntegrity({
+  modulePath: "./engines/langgraph/runtime.ts",
+  expectedHashSha384: "d8e8fca9b1a...", // Verified catalog manifest signature
+});
+
+if (!isIntegrityVerified) {
+  throw new SecurityError("Cryptographic module verification failed: untrusted runtime digest");
+}
+
+// Instantiate security-hardened lease context
+const defensiveContext = createEngineContext({
+  scope: LeaseScope.READ_ONLY,
+  timeoutMs: 15000,
+  memoryLimitMb: 256,
+  maxCycleDepth: 50,
+  allowNetworkEgress: false,
+  fsJailPath: "/tmp/sandboxes/ephemeral_run",
+  auditSink: (event) => {
+    // Append-only tamper-resistant audit ledger
+    process.stdout.write(`[AUDIT-FRAME] ${JSON.stringify(event)}\n`);
+  }
+});
+
+try {
+  const engine = await defensiveContext.mountEngine("./engines/langgraph/runtime.ts");
+  const payload = Object.freeze({ query: "analyze", sanitized: true });
+  const result = await engine.execute(payload);
+  console.log("Safe output produced:", result);
+} catch (fault) {
+  await defensiveContext.emergencyHalt(fault);
+  throw fault;
+} finally {
+  await defensiveContext.dispose();
 }
 ```
 
