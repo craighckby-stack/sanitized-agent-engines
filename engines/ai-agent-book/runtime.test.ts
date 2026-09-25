@@ -1,32 +1,74 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import * as EngineSuite from './index';
 
+interface LifecycleContextInstance {
+  readonly id: string;
+  provide<T>(key: string, service: T): void;
+  inject<T>(key: string): T;
+}
+
+interface ToolExecutionResult {
+  readonly output: unknown;
+  readonly isError: boolean;
+}
+
+interface ToolSandboxInstance {
+  executeToolCall(callId: string, toolName: string, args: Record<string, unknown>): Promise<ToolExecutionResult>;
+}
+
 describe('ai-agent-book Clean-Room Verification Suite', () => {
+  let availableEngineExports: Record<string, unknown>;
+
+  beforeEach(() => {
+    availableEngineExports = EngineSuite as Record<string, unknown>;
+  });
+
   it('should export all decoupled engine modules', () => {
-    expect(EngineSuite).toBeDefined();
+    expect(availableEngineExports).toBeDefined();
+    expect(Object.keys(availableEngineExports).length).toBeGreaterThan(0);
   });
 
   it('should instantiate lifecycle context and handle service injection', () => {
-    const contextClass = Object.values(EngineSuite).find(
-      (v) => typeof v === 'function' && v.name && v.name.includes('LifecycleContext')
-    ) as any;
-    if (contextClass) {
-      const ctx = new contextClass('global');
-      expect(ctx.id).toBeDefined();
-      ctx.provide('testService', { ok: true });
-      expect(ctx.inject('testService')).toEqual({ ok: true });
+    const LifecycleContextConstructor = Object.values(availableEngineExports).find(
+      (candidate): candidate is new (name: string) => LifecycleContextInstance =>
+        typeof candidate === 'function' && candidate.name.includes('LifecycleContext')
+    );
+
+    if (LifecycleContextConstructor) {
+      const contextInstance = new LifecycleContextConstructor('global-scope');
+      expect(contextInstance.id).toBeDefined();
+      
+      const testServicePayload = { ok: true, timestamp: Date.now() };
+      contextInstance.provide('testService', testServicePayload);
+      
+      const injectedService = contextInstance.inject<typeof testServicePayload>('testService');
+      expect(injectedService).toEqual(testServicePayload);
     }
   });
 
   it('should operate virtual file system sandbox with in-memory isolation', async () => {
-    const sandboxClass = Object.values(EngineSuite).find(
-      (v) => typeof v === 'function' && v.name && v.name.includes('ToolSandbox')
-    ) as any;
-    if (sandboxClass) {
-      const sandbox = new sandboxClass({ '/workspace/test.txt': 'initial content' });
-      const readRes = await sandbox.executeToolCall('c1', 'read_file', { path: '/workspace/test.txt' });
-      expect(readRes.output).toBe('initial content');
-      expect(readRes.isError).toBe(false);
+    const ToolSandboxConstructor = Object.values(availableEngineExports).find(
+      (candidate): candidate is new (initialFiles: Record<string, string>) => ToolSandboxInstance =>
+        typeof candidate === 'function' && candidate.name.includes('ToolSandbox')
+    );
+
+    if (ToolSandboxConstructor) {
+      const targetFilePath = '/workspace/test.txt';
+      const initialFileContent = 'initial content';
+      
+      const sandboxInstance = new ToolSandboxConstructor({
+        [targetFilePath]: initialFileContent,
+      });
+
+      const readResult = await sandboxInstance.executeToolCall(
+        'call-id-001',
+        'read_file',
+        { path: targetFilePath }
+      );
+
+      expect(readResult).toBeDefined();
+      expect(readResult.isError).toBe(false);
+      expect(readResult.output).toBe(initialFileContent);
     }
   });
 });
