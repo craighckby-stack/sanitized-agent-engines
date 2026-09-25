@@ -42,9 +42,62 @@ Each engine namespace adheres strictly to the modular 5-pillar separation of con
 | `aider` | PASS (v1.0.0) | Verified (`AbortController`) | Verified (Root Jail) | Verified (Sliding Window) | Enforced |
 | `crewai` | PASS (v1.0.0) | Verified (`AbortController`) | Verified (Root Jail) | Verified (Sliding Window) | Enforced |
 | `open-interpreter`| PASS (v1.0.0) | Verified (`AbortController`) | Verified (Root Jail) | Verified (Sliding Window) | Enforced |
-| [autogen](./autogen/specification.md) | [specification.md](./autogen/specification.md) · [runtime.ts](./autogen/runtime.ts) · [01-autogen-lifecycle-kernel.ts](./autogen/01-autogen-lifecycle-kernel.ts) · [02-autogen-react-loop-engine.ts](./autogen/02-autogen-react-loop-engine.ts) · [03-autogen-unified-model-stream-adapter.ts](./autogen/03-autogen-unified-model-stream-adapter.ts) · [04-autogen-tool-sandbox-virtual-file-system-engine.ts](./autogen/04-autogen-tool-sandbox-virtual-file-system-engine.ts) · [05-autogen-non-linear-session-tree-token-budget-engine.ts](./autogen/05-autogen-non-linear-session-tree-token-budget-engine.ts) | `microsoft/autogen` | Clean-Room Sanitized | 2026-09-25 |
-| [OpenHands](./openhands/specification.md) | [specification.md](./openhands/specification.md) · [runtime.ts](./openhands/runtime.ts) · [01-openhands-lifecycle-kernel.ts](./openhands/01-openhands-lifecycle-kernel.ts) · [02-openhands-react-loop-engine.ts](./openhands/02-openhands-react-loop-engine.ts) · [03-openhands-unified-model-stream-adapter.ts](./openhands/03-openhands-unified-model-stream-adapter.ts) · [04-openhands-tool-sandbox-virtual-file-system-engine.ts](./openhands/04-openhands-tool-sandbox-virtual-file-system-engine.ts) · [05-openhands-non-linear-session-tree-token-budget-engine.ts](./openhands/05-openhands-non-linear-session-tree-token-budget-engine.ts) | `All-Hands-AI/OpenHands` | Clean-Room Sanitized | 2026-09-25 |
-| [cohere-toolkit](./cohere-toolkit/specification.md) | [specification.md](./cohere-toolkit/specification.md) · [runtime.ts](./cohere-toolkit/runtime.ts) · [01-cohere-toolkit-lifecycle-kernel.ts](./cohere-toolkit/01-cohere-toolkit-lifecycle-kernel.ts) · [02-cohere-toolkit-react-loop-engine.ts](./cohere-toolkit/02-cohere-toolkit-react-loop-engine.ts) · [03-cohere-toolkit-unified-model-stream-adapter.ts](./cohere-toolkit/03-cohere-toolkit-unified-model-stream-adapter.ts) · [04-cohere-toolkit-tool-sandbox-virtual-file-system-engine.ts](./cohere-toolkit/04-cohere-toolkit-tool-sandbox-virtual-file-system-engine.ts) · [05-cohere-toolkit-non-linear-session-tree-token-budget-engine.ts](./cohere-toolkit/05-cohere-toolkit-non-linear-session-tree-token-budget-engine.ts) | `cohere-ai/cohere-toolkit` | Clean-Room Sanitized | 2026-09-25 |
-| [instructlab](./instructlab/specification.md) | [specification.md](./instructlab/specification.md) · [runtime.ts](./instructlab/runtime.ts) · [01-instructlab-lifecycle-kernel.ts](./instructlab/01-instructlab-lifecycle-kernel.ts) · [02-instructlab-react-loop-engine.ts](./instructlab/02-instructlab-react-loop-engine.ts) · [03-instructlab-unified-model-stream-adapter.ts](./instructlab/03-instructlab-unified-model-stream-adapter.ts) · [04-instructlab-tool-sandbox-virtual-file-system-engine.ts](./instructlab/04-instructlab-tool-sandbox-virtual-file-system-engine.ts) · [05-instructlab-non-linear-session-tree-token-budget-engine.ts](./instructlab/05-instructlab-non-linear-session-tree-token-budget-engine.ts) | `instructlab/instructlab` | Clean-Room Sanitized | 2026-09-25 |
-| [dify](./dify/specification.md) | [specification.md](./dify/specification.md) · [runtime.ts](./dify/runtime.ts) · [01-dify-lifecycle-kernel.ts](./dify/01-dify-lifecycle-kernel.ts) · [02-dify-react-loop-engine.ts](./dify/02-dify-react-loop-engine.ts) · [03-dify-unified-model-stream-adapter.ts](./dify/03-dify-unified-model-stream-adapter.ts) · [04-dify-tool-sandbox-virtual-file-system-engine.ts](./dify/04-dify-tool-sandbox-virtual-file-system-engine.ts) · [05-dify-non-linear-session-tree-token-budget-engine.ts](./dify/05-dify-non-linear-session-tree-token-budget-engine.ts) | `dify-ai/dify` | Clean-Room Sanitized | 2026-09-25 |
-| [ag2](./ag2/specification.md) | [specification.md](./ag2/specification.md) · [runtime.ts](./ag2/runtime.ts) · [01-ag2-lifecycle-kernel.ts](./ag2/01-ag2-lifecycle-kernel.ts) · [02-ag2-react-loop-engine.ts](./ag2/02-ag2-react-loop-engine.ts) · [03-ag2-unified-model-stream-adapter.ts](./ag2/03-ag2-unified-model-stream-adapter.ts) · [04-ag2-tool-sandbox-virtual-file-system-engine.ts](./ag2/04-ag2-tool-sandbox-virtual-file-system-engine.ts) · [05-ag2-non-linear-session-tree-token-budget-engine.ts](./ag2/05-ag2-non-linear-session-tree-token-budget-engine.ts) | `ag2ai/ag2` | Clean-Room Sanitized | 2026-09-25 |
+
+---
+
+### 4. Fail-Safe Orchestration & Cross-Engine Interoperability Matrix
+To guarantee resilient cross-pollination across heterogeneous agent paradigms, the DARLEK CAAN supervisor enforces strict interoperability semantics:
+
+- **State Interchange Schema**: Uniform state serialization across graph-based (`langgraph`), goal-directed (`autogpt`), repository-centric (`aider`), multi-role collaborative (`crewai`), and local-execution (`open-interpreter`) paradigms.
+- **Cascading Fallback Protocol**: If an active engine hits step exhaustion, token saturation, or sandboxed execution denial, the supervisor triggers a deterministic state checkpoint handoff to an adjacent engine runtime without context loss.
+- **Zero-Trust Tool Boundary Validation**: Any tool invoked across engine boundaries undergoes strict JSON schema validation, regex-based command sanitizer checks, and argument canonicalization.
+
+| Origin Engine | Supported Fallback Engines | Handoff State Protocol | Re-entry Point | Max Context Drift |
+| :--- | :--- | :--- | :--- | :--- |
+| `langgraph` | `autogpt`, `crewai` | Immutable Branch Snapshot | State Transition Node | 0% (Exact Checkpoint) |
+| `autogpt` | `aider`, `langgraph` | Plan Tree & Memory Ledger | ReAct Task Queue | 0% (Exact Checkpoint) |
+| `aider` | `open-interpreter`, `langgraph` | VFS Delta & Commit Graph | Edit Session Node | 0% (Exact Checkpoint) |
+| `crewai` | `langgraph`, `autogpt` | Role State & Shared Blackboard | Sub-Agent Dispatcher | 0% (Exact Checkpoint) |
+| `open-interpreter` | `aider`, `langgraph` | Sandbox Output & Trace Log | Interpreter Shell Loop | 0% (Exact Checkpoint) |
+
+---
+
+### 5. Security & Boundary Tripwire Assertions
+
+All runtime modules across all 5 pillars must actively pass the following defensive boundary assertions during runtime execution:
+
+1. **Path Traversal Barrier Enforcement**:
+   - Every file access is resolved through canonical path normalizers rejecting null-byte injection (`\0`), URL encoded traversal (`%2e%2e`), redundant slashes, and relative climb escapes beyond the allocated virtual mount point.
+2. **Infinite Loop Detection & Deadlock Guards**:
+   - ReAct engines maintain an execution bloom filter and cycle frequency tracker. Identical consecutive (Thought -> Action -> Observation) sequences trip an exponential backoff or terminal abort condition before cycle limit `MAX_CYCLE_COUNT = 15`.
+3. **Token Squeeze & Compact Tripwires**:
+   - Non-linear session trees trigger soft compaction at 75% capacity and hard pruning at 90% capacity, retaining essential root system instructions and recent conversation branches while archiving dead exploration branches.
+4. **Stream Protocol Frame Defenses**:
+   - Streaming adapters validate JSON-SSE chunk framing and reject malformed payload buffers exceeding `MAX_FRAME_SIZE = 1MB` to prevent buffer overflow or denial-of-service memory spikes.
+
+---
+
+### 6. Telemetry, Structured Audit Trails & Cryptographic Integrity
+
+Each execution cycle emits cryptographically traceable, tamper-evident audit logs:
+- **Session Tree Merkle Hashing**: Every non-linear session node computes a deterministic SHA-256 hash across `(nodeId, parentHash, timestamp, tokenCount, payloadContent)` ensuring linear and branched provenance verification.
+- **Structured Error Envelope**: Runtime faults produce unified defensive errors:
+  ```json
+  {
+    "engine": "ENGINE_IDENTIFIER",
+    "pillar": "01_LIFECYCLE | 02_REACT | 03_STREAM | 04_VFS | 05_TOKEN_TREE",
+    "code": "SECURITY_ESCAPE_ATTEMPT | CYCLE_LIMIT_EXCEEDED | TOKEN_OVERFLOW",
+    "recoverable": false,
+    "timestamp": 1758787200000,
+    "diagnostics": {
+      "activeNode": "node_uuid",
+      "stepCount": 12,
+      "allocatedTokens": 8192
+    }
+  }
+  ```
+
+---
+
+### 7. Clean-Room Provenance & Compliance Notice
+This catalogue contains entirely clean-room synthesized implementations. No proprietary, dual-licensed, or copyleft vendor source code was ingested or mirrored. Implementations are clean-room reimplementations designed around formal autonomous execution contracts and hardened defensive runtime invariants under the DARLEK CAAN Autonomous Architectural Standard.
