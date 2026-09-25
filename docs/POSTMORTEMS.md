@@ -416,3 +416,12 @@ Line 69, Col 1: Declaration or statement expected.
 6. **ReAct Loop Execution Safeguards (G-36 Extended):**
    - ReAct loops must enforce a hard iteration maximum (`maxSteps: 30`) and execution timeout (`timeoutMs: 60000`).
    - Loop steps must record idempotent breadcrumbs enabling exact session replay during root-cause post-mortem generation.
+
+### ❌ [2026-09-25] engines/autogen/04-autogen-tool-sandbox-virtual-file-system-engine.ts `source: mutation-cycle`
+**Symptom:** AST / TypeScript Compiler Validation Rejected
+**EVIDENCE (Machine-Copied Fact):**
+```
+Line 27, Col 38: Unterminated regular expression literal.
+Line 27, Col 72: ')' expected.
+```
+**CONSTRAINT (Model Generalization):** Never repeat code patterns that produce this compiler/linter error on engines/autogen/04-autogen-tool-sandbox-virtual-file-system-engine.ts.
