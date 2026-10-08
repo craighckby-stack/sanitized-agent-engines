@@ -8,3 +8,5 @@ All vendor trademarks and proprietary branding have been scrubbed into isolated,
 | Engine Name | Implementation Files | Source Origin | Status | Indexed Date |
 | :--- | :--- | :--- | :--- | :--- |
 | [deepseek-harness](./deepseek-harness/specification.md) | [specification.md](./deepseek-harness/specification.md) · [runtime.ts](./deepseek-harness/runtime.ts) | `deepseek-ai/deepseek-harness` | Clean-Room Sanitized | 2026-10-08 |
+
+| [open-interpreter](./open-interpreter/specification.md) | [specification.md](./open-interpreter/specification.md) · [runtime.ts](./open-interpreter/runtime.ts) · [01-openinterpreterruntimeenginecoreruntime.ts](./open-interpreter/01-openinterpreterruntimeenginecoreruntime.ts) · [02-openinterpreterruntimeenginestatecontext.ts](./open-interpreter/02-openinterpreterruntimeenginestatecontext.ts) | `KillianLucas/open-interpreter` | Clean-Room Sanitized | 2026-10-08 |
