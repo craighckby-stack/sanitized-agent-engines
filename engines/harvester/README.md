@@ -1,7 +1,7 @@
 # harvester
 
-> Clean-room architectural extraction of the runtime engine powering [harvester/harvester](harvester/harvester).
-> **License**: Apache-2.0 (Apache License 2.0)
+> Clean-room architectural extraction of the runtime engine powering [wzdnzd/harvester](wzdnzd/harvester).
+> **License**: MIT (MIT License)
 
 ## Quickstart
 
