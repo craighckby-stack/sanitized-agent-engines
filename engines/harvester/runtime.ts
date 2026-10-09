@@ -1,8 +1,8 @@
 /**
  * @license
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: MIT
  * Unified Clean-Room Runtime for harvester
- * Source Origin: harvester/harvester
+ * Source Origin: wzdnzd/harvester
  */
 
 // ==========================================
