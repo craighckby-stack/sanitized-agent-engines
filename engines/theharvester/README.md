@@ -1,7 +1,7 @@
 # theHarvester
 
-> Clean-room architectural extraction of the runtime engine powering [laramies/theHarvester](laramies/theHarvester).
-> **License**: GPL-2.0 (GNU General Public License v2.0)
+> Clean-room architectural extraction of the runtime engine powering [opsdisk/theHarvester](opsdisk/theHarvester).
+> **License**: MIT (MIT License)
 
 ## Quickstart
 
