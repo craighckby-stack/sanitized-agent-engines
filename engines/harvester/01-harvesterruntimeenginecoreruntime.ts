@@ -1,9 +1,9 @@
 /**
  * @license
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: MIT
  *
  * HarvesterRuntimeEngineCoreRuntime
- * Source Origin: harvester/harvester
+ * Source Origin: wzdnzd/harvester
  * Isolated clean-room architectural engine extracted by Engine Harvester
  */
 
