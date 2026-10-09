@@ -1,7 +1,7 @@
-# harvester
+# Harvester
 
-> Clean-room architectural extraction of the runtime engine powering [wzdnzd/harvester](wzdnzd/harvester).
-> **License**: MIT (MIT License)
+> Clean-room architectural extraction of the runtime engine powering [TransparencyToolkit/Harvester](TransparencyToolkit/Harvester).
+> **License**: GPL-3.0 (GNU General Public License v3.0)
 
 ## Quickstart
 
