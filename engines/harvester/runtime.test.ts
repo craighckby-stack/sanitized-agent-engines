@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as EngineSuite from './index';
 
-describe('harvester Clean-Room Verification Suite', () => {
+describe('Harvester Clean-Room Verification Suite', () => {
   it('should export all decoupled engine modules', () => {
     expect(EngineSuite).toBeDefined();
   });
