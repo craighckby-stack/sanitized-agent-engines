@@ -1,8 +1,8 @@
 /**
  * @license
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: MIT
  * Engine Package Exports for harvester
- * Source Origin: harvester/harvester
+ * Source Origin: wzdnzd/harvester
  */
 
 export * from './01-harvesterruntimeenginecoreruntime';
