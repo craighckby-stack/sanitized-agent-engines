@@ -1,7 +1,7 @@
 # TheHarvesterRuntimeEngine Engine Specification
 *Sanitized Clean-Room Architectural Transpilation & Implementation Code*
 
-> **Source Origin**: [laramies/theHarvester](https://github.com/laramies/theHarvester)
+> **Source Origin**: [opsdisk/theHarvester](https://github.com/opsdisk/theHarvester)
 > **Extracted Modules**: Ingested raw source AST signatures (Core Modules).
 
 ---
@@ -9,7 +9,7 @@
 ## Engine 1: TheHarvesterRuntimeEngineCoreRuntime
 
 ### What it does
-Transpiled directly from raw ingested source code in `laramies/theHarvester`. Manages the primary runtime execution cycle.
+Transpiled directly from raw ingested source code in `opsdisk/theHarvester`. Manages the primary runtime execution cycle.
 
 ### Implementation Code
 ```typescript
@@ -30,7 +30,7 @@ export class TheHarvesterRuntimeEngineCoreRuntime {
 ## Engine 2: TheHarvesterRuntimeEngineStateContext
 
 ### What it does
-Manages isolated runtime state and event dispatches for `laramies/theHarvester`.
+Manages isolated runtime state and event dispatches for `opsdisk/theHarvester`.
 
 ### Implementation Code
 ```typescript
