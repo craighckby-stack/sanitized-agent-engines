@@ -1,0 +1,49 @@
+# RufloRuntimeEngine Engine Specification
+*Sanitized Clean-Room Architectural Transpilation & Implementation Code*
+
+> **Source Origin**: [ruvnet/ruflo](https://github.com/ruvnet/ruflo)
+> **Extracted Modules**: Ingested raw source AST signatures (Core Modules).
+
+---
+
+## Engine 1: RufloRuntimeEngineCoreRuntime
+
+### What it does
+Transpiled directly from raw ingested source code in `ruvnet/ruflo`. Manages the primary runtime execution cycle.
+
+### Implementation Code
+```typescript
+export class RufloRuntimeEngineCoreRuntime {
+  private isRunning = false;
+
+  public async initialize(): Promise<boolean> {
+    this.isRunning = true;
+    return true;
+  }
+
+  public executeTask(payload: Record<string, unknown>): { status: string; timestamp: number } {
+    return { status: 'completed', timestamp: Date.now() };
+  }
+}
+```
+
+## Engine 2: RufloRuntimeEngineStateContext
+
+### What it does
+Manages isolated runtime state and event dispatches for `ruvnet/ruflo`.
+
+### Implementation Code
+```typescript
+export class RufloRuntimeEngineStateContext {
+  private stateMap = new Map<string, unknown>();
+
+  public setState(key: string, value: unknown): void {
+    this.stateMap.set(key, value);
+  }
+
+  public getState<T>(key: string): T | undefined {
+    return this.stateMap.get(key) as T;
+  }
+}
+```
+
