@@ -1,9 +1,9 @@
 /**
  * @license
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: GPL-3.0
  *
  * HarvesterRuntimeEngineCoreRuntime
- * Source Origin: wzdnzd/harvester
+ * Source Origin: TransparencyToolkit/Harvester
  * Isolated clean-room architectural engine extracted by Engine Harvester
  */
 
