@@ -7,9 +7,9 @@
 
 | # | Engine | Source Repository |
 |---|--------|-------------------|
-| 1 | [autonomous-agent-runtime](./engines/autonomous-agent-runtime) | [`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent) |
-| 2 | [nano-claude-code-harness](./engines/nano-claude-code-harness) | [`shareAI-lab/learn-claude-code`](https://github.com/shareAI-lab/learn-claude-code) |
-| 3 | [frontend-checklist-agent](./engines/frontend-checklist-agent) | [`thedaviddias/Front-End-Checklist`](https://github.com/thedaviddias/Front-End-Checklist) |
+| 1 | [stock-analysis-agent](./engines/stock-analysis-agent) | [`ZhuLinsen/daily_stock_analysis`](https://github.com/ZhuLinsen/daily_stock_analysis) |
+| 2 | [ai-agent-book](./engines/ai-agent-book) | [`bojieli/ai-agent-book`](https://github.com/bojieli/ai-agent-book) |
+| 3 | [nanobot-agent](./engines/nanobot-agent) | [`HKUDS/nanobot`](https://github.com/HKUDS/nanobot) |
 
 ## License
 
