@@ -1,6 +1,6 @@
 /**
  * @license
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: Apache-2.0
  * Engine Package Exports for kotaemon
  * Source Origin: Cinnamon/kotaemon
  */
