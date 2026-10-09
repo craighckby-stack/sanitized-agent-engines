@@ -9,7 +9,7 @@
     "test": "vitest run",
     "start": "tsx runtime.ts"
   },
-  "license": "Apache-2.0",
+  "license": "MIT",
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0",
