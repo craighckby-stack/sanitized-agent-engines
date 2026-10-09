@@ -1,8 +1,8 @@
 /**
  * @license
- * SPDX-License-Identifier: MIT
- * Engine Package Exports for harvester
- * Source Origin: wzdnzd/harvester
+ * SPDX-License-Identifier: GPL-3.0
+ * Engine Package Exports for Harvester
+ * Source Origin: TransparencyToolkit/Harvester
  */
 
 export * from './01-harvesterruntimeenginecoreruntime';
