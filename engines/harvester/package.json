@@ -1,7 +1,7 @@
 {
   "name": "@engine-harvester/harvester",
   "version": "1.0.0",
-  "description": "Sanitized clean-room autonomous engine extracted from harvester/harvester",
+  "description": "Sanitized clean-room autonomous engine extracted from wzdnzd/harvester",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -9,7 +9,7 @@
     "test": "vitest run",
     "start": "tsx runtime.ts"
   },
-  "license": "Apache-2.0",
+  "license": "MIT",
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0",
