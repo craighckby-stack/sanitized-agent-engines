@@ -1,8 +1,8 @@
 /**
  * @license
- * SPDX-License-Identifier: MIT
- * Unified Clean-Room Runtime for harvester
- * Source Origin: wzdnzd/harvester
+ * SPDX-License-Identifier: GPL-3.0
+ * Unified Clean-Room Runtime for Harvester
+ * Source Origin: TransparencyToolkit/Harvester
  */
 
 // ==========================================
