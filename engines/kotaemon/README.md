@@ -1,7 +1,7 @@
 # kotaemon
 
 > Clean-room architectural extraction of the runtime engine powering [Cinnamon/kotaemon](Cinnamon/kotaemon).
-> **License**: MIT (MIT License)
+> **License**: Apache-2.0 (Apache License 2.0)
 
 ## Quickstart
 
