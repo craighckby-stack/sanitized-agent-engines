@@ -1,6 +1,6 @@
 /**
  * @license
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: MIT
  * Unified Clean-Room Runtime for kotaemon
  * Source Origin: Cinnamon/kotaemon
  */
