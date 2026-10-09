@@ -1,7 +1,7 @@
 # HarvesterRuntimeEngine Engine Specification
 *Sanitized Clean-Room Architectural Transpilation & Implementation Code*
 
-> **Source Origin**: [wzdnzd/harvester](https://github.com/wzdnzd/harvester)
+> **Source Origin**: [TransparencyToolkit/Harvester](https://github.com/TransparencyToolkit/Harvester)
 > **Extracted Modules**: Ingested raw source AST signatures (Core Modules).
 
 ---
@@ -9,7 +9,7 @@
 ## Engine 1: HarvesterRuntimeEngineCoreRuntime
 
 ### What it does
-Transpiled directly from raw ingested source code in `wzdnzd/harvester`. Manages the primary runtime execution cycle.
+Transpiled directly from raw ingested source code in `TransparencyToolkit/Harvester`. Manages the primary runtime execution cycle.
 
 ### Implementation Code
 ```typescript
@@ -30,7 +30,7 @@ export class HarvesterRuntimeEngineCoreRuntime {
 ## Engine 2: HarvesterRuntimeEngineStateContext
 
 ### What it does
-Manages isolated runtime state and event dispatches for `wzdnzd/harvester`.
+Manages isolated runtime state and event dispatches for `TransparencyToolkit/Harvester`.
 
 ### Implementation Code
 ```typescript
