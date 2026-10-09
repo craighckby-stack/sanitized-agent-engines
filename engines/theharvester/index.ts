@@ -1,8 +1,8 @@
 /**
  * @license
- * SPDX-License-Identifier: GPL-2.0
+ * SPDX-License-Identifier: MIT
  * Engine Package Exports for theHarvester
- * Source Origin: laramies/theHarvester
+ * Source Origin: opsdisk/theHarvester
  */
 
 export * from './01-theharvesterruntimeenginecoreruntime';
