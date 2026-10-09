@@ -7,9 +7,9 @@
 
 | # | Engine | Source Repository |
 |---|--------|-------------------|
-| 1 | [stock-analysis-agent](./engines/stock-analysis-agent) | [`ZhuLinsen/daily_stock_analysis`](https://github.com/ZhuLinsen/daily_stock_analysis) |
-| 2 | [ai-agent-book](./engines/ai-agent-book) | [`bojieli/ai-agent-book`](https://github.com/bojieli/ai-agent-book) |
-| 3 | [nanobot-agent](./engines/nanobot-agent) | [`HKUDS/nanobot`](https://github.com/HKUDS/nanobot) |
+| 1 | [cherry-studio-agent-runtime](./engines/cherry-studio-agent-runtime) | [`CherryHQ/cherry-studio`](https://github.com/CherryHQ/cherry-studio) |
+| 2 | [nanobot-agent-runtime](./engines/nanobot-agent-runtime) | [`HKUDS/nanobot`](https://github.com/HKUDS/nanobot) |
+| 3 | [siyuan-knowledge-workspace](./engines/siyuan-knowledge-workspace) | [`siyuan-note/siyuan`](https://github.com/siyuan-note/siyuan) |
 
 ## License
 
