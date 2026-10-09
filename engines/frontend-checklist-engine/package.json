@@ -1,0 +1,35 @@
+{
+  "name": "@engine-harvester/frontend-checklist-engine",
+  "version": "1.0.0",
+  "description": "Sanitized clean-room autonomous engine extracted from thedaviddias/Front-End-Checklist",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "runtime.ts"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "start": "tsx runtime.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
