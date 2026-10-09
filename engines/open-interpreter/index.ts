@@ -5,5 +5,6 @@
  * Source Origin: KillianLucas/open-interpreter
  */
 
-export * from './01-messaging-protocol-definition-engine';
+export * from './01-openinterpreterruntimeenginecoreruntime';
+export * from './02-openinterpreterruntimeenginestatecontext';
 export * from './runtime';
