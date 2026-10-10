@@ -1,49 +1,7 @@
-# OpenInterpreterRuntimeEngine Engine Specification
-*Sanitized Clean-Room Architectural Transpilation & Implementation Code*
+No runtime engines could be identified from the provided code snippets.
 
-> **Source Origin**: [KillianLucas/open-interpreter](https://github.com/KillianLucas/open-interpreter)
-> **Extracted Modules**: Ingested raw source AST signatures (Core Modules).
+The analyzed files consist of:
+*   Python scripts (`.github/scripts/`): These scripts appear to be utility scripts for CI/CD processes or development environment setup (e.g., verifying architectural boundaries, exporting build tools). They operate *outside* the primary application's runtime execution flow and do not constitute core runtime engines of the AI or software system itself.
+*   TypeScript type definitions (`codex-rs/app-server-protocol/schema/typescript/`): These are generated code files that define data structures and interfaces for inter-process communication (e.g., `AgentMessageInputContent`, `ClientInfo`, `ClientNotification`). They describe the *format* of data exchanged but do not contain any executable logic, state management, or operational responsibilities that would qualify them as runtime engines.
 
----
-
-## Engine 1: OpenInterpreterRuntimeEngineCoreRuntime
-
-### What it does
-Transpiled directly from raw ingested source code in `KillianLucas/open-interpreter`. Manages the primary runtime execution cycle.
-
-### Implementation Code
-```typescript
-export class OpenInterpreterRuntimeEngineCoreRuntime {
-  private isRunning = false;
-
-  public async initialize(): Promise<boolean> {
-    this.isRunning = true;
-    return true;
-  }
-
-  public executeTask(payload: Record<string, unknown>): { status: string; timestamp: number } {
-    return { status: 'completed', timestamp: Date.now() };
-  }
-}
-```
-
-## Engine 2: OpenInterpreterRuntimeEngineStateContext
-
-### What it does
-Manages isolated runtime state and event dispatches for `KillianLucas/open-interpreter`.
-
-### Implementation Code
-```typescript
-export class OpenInterpreterRuntimeEngineStateContext {
-  private stateMap = new Map<string, unknown>();
-
-  public setState(key: string, value: unknown): void {
-    this.stateMap.set(key, value);
-  }
-
-  public getState<T>(key: string): T | undefined {
-    return this.stateMap.get(key) as T;
-  }
-}
-```
-
+Therefore, based solely on the provided source code snippets, no distinct runtime engines can be extracted and described.
